@@ -27,7 +27,22 @@ local function cleanupPlayer(player)
 	playerControllers[player.UserId] = nil
 end
 
-Players.PlayerAdded:Connect(initializePlayer)
+Players.PlayerAdded:Connect(function(player)
+	initializePlayer(player)
+	player.CharacterAdded:Connect(function(character)
+		local controller = playerControllers[player.UserId]
+		if controller then
+			controller:OnCharacterAdded(character)
+		end
+	end)
+	player.CharacterRemoving:Connect(function()
+		local controller = playerControllers[player.UserId]
+		if controller then
+			controller:OnCharacterRemoving()
+		end
+	end)
+end)
+
 Players.PlayerRemoving:Connect(cleanupPlayer)
 
 for _, player in pairs(Players:GetPlayers()) do
@@ -78,6 +93,22 @@ Remotes:WaitForChild(RemoteNames.RemoteEvents.Reload).OnServerEvent:Connect(func
 	controller:Reload(weaponId)
 end)
 
+Remotes:WaitForChild(RemoteNames.RemoteEvents.Aim).OnServerEvent:Connect(function(player, state)
+	local controller = getController(player)
+	if not controller then
+		return
+	end
+	controller:SetAiming(state)
+end)
+
+Remotes:WaitForChild(RemoteNames.RemoteEvents.AimUpdate).OnServerEvent:Connect(function(player, pitch)
+	local controller = getController(player)
+	if not controller then
+		return
+	end
+	controller:UpdateAimPitch(pitch)
+end)
+
 Remotes:WaitForChild(RemoteNames.RemoteFunctions.GetAmmo).OnServerInvoke = function(player, weaponId)
 	local controller = getController(player)
 	if not controller then
@@ -86,12 +117,12 @@ Remotes:WaitForChild(RemoteNames.RemoteFunctions.GetAmmo).OnServerInvoke = funct
 	return controller:GetAmmo(weaponId)
 end
 
-Remotes:WaitForChild(RemoteNames.RemoteEvents.Aim).OnServerEvent:Connect(function(player, state)
+Remotes:WaitForChild(RemoteNames.RemoteFunctions.GenerateGUID).OnServerInvoke = function(player, weapon: Tool)
 	local controller = getController(player)
 	if not controller then
 		return
 	end
-	controller:SetAiming(state)
-end)
+	return controller:GenerateGUID(weapon)
+end
 
 print("[XijumWeaponSystem] Server successfully started!")

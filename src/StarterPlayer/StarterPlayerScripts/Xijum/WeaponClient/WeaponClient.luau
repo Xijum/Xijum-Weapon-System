@@ -18,14 +18,18 @@ local AnimationHandler = require(script.Parent.AnimationHandler)
 local RemoteNames = require(WeaponSystem:WaitForChild("RemotesDefinitions"))
 local Remotes = WeaponSystem:WaitForChild("Remotes")
 
+local WeaponHUD = require(WeaponSystem:WaitForChild("Utils"):WaitForChild("WeaponHUD"))
+
 local EquipRemote = Remotes:WaitForChild(RemoteNames.RemoteEvents.Equip)
 local FireRemote = Remotes:WaitForChild(RemoteNames.RemoteEvents.Fire)
 local ReloadRemote = Remotes:WaitForChild(RemoteNames.RemoteEvents.Reload)
 local AimRemote = Remotes:WaitForChild(RemoteNames.RemoteEvents.Aim)
 local UnequipRemote = Remotes:WaitForChild(RemoteNames.RemoteEvents.Unequip)
 local SoundRemote = Remotes:WaitForChild(RemoteNames.RemoteEvents.Sound)
+local AimUpdateRemote = Remotes:WaitForChild(RemoteNames.RemoteEvents.AimUpdate)
 
 local GetAmmoFunction = Remotes:WaitForChild(RemoteNames.RemoteFunctions.GetAmmo)
+local GenerateGUIDFunction = Remotes:WaitForChild(RemoteNames.RemoteFunctions.GenerateGUID)
 
 -- ============================================================================
 -- CLASS DEFINITION
@@ -41,11 +45,31 @@ function WeaponClient.new()
 	self.InputBound = false
 	self.IsAiming = false
 
+	self.WeaponHUD = nil
 	self.AnimationHandler = AnimationHandler.new()
 	self.Camera = Camera.new()
 	self:AttachCamera()
 
+	-- self.Firemode['UID'] = "Auto"
+	self.Firemode = {}
+
 	return self
+end
+
+function WeaponClient:InitHUD()
+	local playerGui = player:WaitForChild("PlayerGui")
+
+	local hudGui = playerGui:WaitForChild("XijumHUD")
+	local weaponHudFrame = hudGui:WaitForChild("WeaponHUD")
+
+	self.WeaponHUD = WeaponHUD.new(weaponHudFrame)
+end
+
+function WeaponClient:GetWeaponUID()
+	if not self.CurrentWeaponUID then
+		error("WeaponUID accessed before being set")
+	end
+	return self.CurrentWeaponUID
 end
 
 -- ============================================================================
@@ -68,6 +92,25 @@ function WeaponClient:EquipWeapon(weapon: Tool)
 	self.CurrentWeapon = weapon
 	EquipRemote:FireServer(self.CurrentWeapon)
 
+	local uid = weapon:GetAttribute("WeaponUID")
+	if not uid then
+		warn("Weapon equipped without WeaponUID:", weapon.Name)
+		return
+	end
+
+	self.CurrentWeaponUID = uid
+
+	self.Firemode[uid] = self.Firemode[uid] or self.Config.FireMode[1]
+
+	local currentAmmo, reserveAmmo = GetAmmoFunction:InvokeServer(self.CurrentWeaponUID)
+	self.WeaponHUD:update(
+		self.Config.Name,
+		self.Firemode[self.CurrentWeaponUID] or self.Config.FireMode[1],
+		currentAmmo,
+		reserveAmmo
+	)
+	self.WeaponHUD:setEnabled(true)
+
 	self:PlayAnimation("Equip")
 	self:PlayAnimation("Idle")
 	self:PlaySound("Local", "Equip")
@@ -83,6 +126,13 @@ function WeaponClient:UnequipWeapon()
 	self:PlaySound("Local", "Unequip")
 	self:ToggleAiming(false) -- Ensure aiming is disabled
 
+	self.Camera:Deactivate()
+
+	self.CurrentWeapon = nil
+	self.Config = nil
+	self.IsFiring = false
+	self.WeaponHUD:setEnabled(false)
+
 	-- Get animation length from config, default to 0.5s
 	local unequipDuration = 0.5
 	if self.Config and self.Config.Animations and self.Config.Animations.Unequip then
@@ -91,13 +141,7 @@ function WeaponClient:UnequipWeapon()
 	end
 
 	task.wait(unequipDuration)
-
-	UnequipRemote:FireServer(self.CurrentWeapon:GetAttribute("WeaponUID"))
-	self.Camera:Deactivate()
-
-	self.CurrentWeapon = nil
-	self.Config = nil
-	self.IsFiring = false
+	UnequipRemote:FireServer(self.CurrentWeaponUID)
 end
 
 function WeaponClient:GetCurrentWeapon()
@@ -121,7 +165,7 @@ function WeaponClient:IsFiring()
 end
 
 function WeaponClient:ToggleAiming(isAiming)
-	if not self.CurrentWeapon then
+	if not self.CurrentWeapon or self.IsReloading then
 		return
 	end
 	self.IsAiming = isAiming
@@ -151,10 +195,24 @@ function WeaponClient:DeactivateCamera()
 end
 
 function WeaponClient:AttachCamera()
-	RunService.RenderStepped:Connect(function(dt)
+	-- Disconnect the previous connection if it exists
+	if self.CameraConnection then
+		self.CameraConnection:Disconnect()
+		self.CameraConnection = nil
+	end
+
+	-- Set up the new connection to RenderStepped
+	self.CameraConnection = RunService.RenderStepped:Connect(function(dt)
 		local currentSelf = self
 		if currentSelf.Camera and currentSelf.Camera.isActive then
 			currentSelf.Camera:UpdateCamera(dt)
+		end
+
+		if self.IsAiming then
+			local lookY = workspace.CurrentCamera.CFrame.LookVector.Y
+			local pitch = math.asin(lookY)
+
+			AimUpdateRemote:FireServer(pitch)
 		end
 	end)
 end
@@ -164,15 +222,17 @@ end
 -- ============================================================================
 
 function WeaponClient:Reload()
-	if not self.CurrentWeapon or not self.Config then
+	if not self.CurrentWeapon or not self.Config or self.IsReloading or self.IsAiming then
 		return
 	end
 
 	self:PlayAnimation("Reload")
 	self:PlaySound("Server", "Reload")
 
+	self.WeaponHUD:setAmmo(nil, nil, "Reloading...")
+
 	self.IsReloading = true
-	ReloadRemote:FireServer(self.CurrentWeapon:GetAttribute("WeaponUID"))
+	ReloadRemote:FireServer(self.CurrentWeaponUID)
 
 	task.wait(self.Config.ReloadTime)
 	self.IsReloading = false
@@ -200,8 +260,10 @@ function WeaponClient:CanFire()
 	if self:GetReloadingState() then
 		return false
 	end
-	local ammo, reserve = GetAmmoFunction:InvokeServer(self.CurrentWeapon:GetAttribute("WeaponUID"))
+	local ammo, reserve = GetAmmoFunction:InvokeServer(self.CurrentWeaponUID)
 	if ammo <= 0 then
+		self:PlaySound("Local", "EmptyClick")
+		warn("a")
 		return false
 	end
 	-- Fire rate check
@@ -252,7 +314,7 @@ end
 -- ============================================================================
 
 function WeaponClient:ToggleFireMode()
-	if not self.CurrentWeapon or not self.Config or self:IsAiming() then
+	if not self.CurrentWeapon or not self.Config then
 		return
 	end
 	-- Check if config allows for fire mode toggling
@@ -262,11 +324,13 @@ function WeaponClient:ToggleFireMode()
 
 	self:PlayAnimation("Firemode")
 
-	local currentMode = self.Config.FireMode[1]
+	local currentMode = self.Firemode[self.CurrentWeaponUID] or self.Config.FireMode[1]
 	local modes = self.Config.FireMode
 	local currentIndex = table.find(modes, currentMode)
 	local nextIndex = currentIndex % #modes + 1
-	self.Config.FireMode[1] = modes[nextIndex]
+	self.Firemode[self.CurrentWeaponUID] = modes[nextIndex]
+	self.WeaponHUD:setFireMode(self.Firemode[self.CurrentWeaponUID])
+	self:PlaySound("Local", "Firemode")
 end
 
 function WeaponClient:PlayAnimation(animationType: string, speed: number?)
@@ -321,6 +385,10 @@ end
 -- ============================================================================
 
 function WeaponClient:BindInput()
+	if self.Camera then
+		self:AttachCamera()
+	end
+
 	if self.InputBound then
 		return
 	end
@@ -335,13 +403,15 @@ function WeaponClient:BindInput()
 			self.IsFiring = true
 			while self.IsFiring do
 				self:Fire()
-				if self.Config.FireMode[1] ~= "Auto" then
+				if self.Firemode[self.CurrentWeaponUID] ~= "Auto" then
 					break
 				end
 				RunService.Heartbeat:Wait()
 			end
 		elseif input.KeyCode == Enum.KeyCode.R then
 			self:Reload()
+		elseif input.KeyCode == Enum.KeyCode.V then
+			self:ToggleFireMode()
 		elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
 			self:ToggleAiming(true)
 		end
@@ -378,6 +448,13 @@ function WeaponClient:BindInput()
 			if child:IsA("Tool") and child:FindFirstChild("XijumWeapon").Value then
 				if not connectedTools[child] then
 					connectedTools[child] = true
+
+					-- check if gun has UID if not request server to create one
+					local uid = child:GetAttribute("WeaponUID")
+					if not uid then
+						uid = GenerateGUIDFunction:InvokeServer(child)
+					end
+
 					child.Equipped:Connect(function()
 						onToolEquipped(child)
 					end)
@@ -391,11 +468,20 @@ function WeaponClient:BindInput()
 end
 
 function WeaponClient:OnCharacterDied()
-	self:UnequipWeapon()
+	if self.Camera then
+		self.Camera:PlayerDied()
+	end
+
+	if self.CameraConnection then
+		self.CameraConnection:Disconnect()
+		self.CameraConnection = nil
+	end
+
 	self.CurrentWeapon = nil
 	self.Config = nil
 	self.IsFiring = false
 	self.IsReloading = false
+	self.IsAiming = false
 end
 
 return WeaponClient

@@ -1,4 +1,4 @@
-# Xijum Weapon System - v0.0.6
+# Xijum Weapon System - v0.0.7
 
 A comprehensive weapon system for Roblox built with Rojo, featuring client-server architecture, camera handling, animations, and modular weapon configurations.
 

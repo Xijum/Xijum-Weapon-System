@@ -22,9 +22,9 @@ end
 
 -- Default function for simple Humanoid, aka only XWS is in game and nothing else
 
-local function HumanoidDamage(data, damage) -- data should be in the form of the character data
-	local character = data.character:FindFirstAncestorOfClass("Model")
-	if character then
+local function HumanoidDamage(data, damage)
+	local character = data.character
+	if character and character:IsA("Model") then
 		local humanoid = character:FindFirstChildOfClass("Humanoid")
 		if humanoid and humanoid.Health > 0 then
 			humanoid:TakeDamage(damage)

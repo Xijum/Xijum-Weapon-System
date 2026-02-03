@@ -48,6 +48,4 @@ function HitValidation.HitValidationDetection(hitPart)
 	return HumanoidDetection(hitPart)
 end
 
--- Main function used by other modules for hit validation
-
 return HitValidation

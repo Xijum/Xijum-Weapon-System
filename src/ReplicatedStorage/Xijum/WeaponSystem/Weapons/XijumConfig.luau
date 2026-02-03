@@ -1,5 +1,5 @@
 return {
-	Id = "AssaultRifle",
+	Name = "FX-05 Xijum",
 
 	FireMode = { "Auto", "Semi" }, -- Auto | Semi | Burst | Pump
 	FireRate = 750, -- RPM
@@ -45,6 +45,7 @@ return {
 		Aim = "rbxassetid://125800774064191",
 		Firemode = "rbxassetid://102002648823684",
 		Emtpy = "rbxassetid://321719832",
+		EmptyClick = "rbxassetid://743780661",
 	},
 
 	Bullet = {},

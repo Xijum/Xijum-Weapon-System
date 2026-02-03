@@ -4,8 +4,15 @@ local RenderStepped = game:GetService("RunService").Heartbeat
 
 local Xijum = ReplicatedStorage:WaitForChild("Xijum")
 local WeaponSystem = Xijum:WaitForChild("WeaponSystem")
+
+local RemoteNames = require(WeaponSystem:WaitForChild("RemotesDefinitions"))
+local Remotes = WeaponSystem:WaitForChild("Remotes")
+
 local Raycast = require(WeaponSystem:WaitForChild("Utils"):WaitForChild("Raycast"))
 local Bullet = require(WeaponSystem:WaitForChild("Utils"):WaitForChild("Bullet"))
+local BodyAim = require(WeaponSystem:WaitForChild("Utils"):WaitForChild("BodyAim"))
+
+local AmmoUpdateRemote = Remotes:WaitForChild(RemoteNames.RemoteEvents.AmmoUpdateRemote)
 
 -- ============================================================================
 -- WEAPON CONTROLLER
@@ -18,6 +25,7 @@ function WeaponController.new(player)
 	local self = setmetatable({}, WeaponController)
 	self.Player = player
 	self.Raycast = Raycast.new()
+	self.BodyAim = nil
 	self.CurrentWeapon = nil
 	self.CurrentConfig = nil
 	self.IsReloading = false
@@ -45,6 +53,16 @@ end
 -- WEAPON MANAGEMENT
 -- ============================================================================
 
+function WeaponController:GenerateGUID(weapon: Tool)
+	local weaponId = weapon:GetAttribute("WeaponUID")
+	if not weaponId then
+		weaponId = HttpService:GenerateGUID()
+		weapon:SetAttribute("WeaponUID", weaponId)
+	end
+
+	return weaponId
+end
+
 function checkUUID(weapon: Tool)
 	local weaponId = weapon:GetAttribute("WeaponUID")
 	if not weaponId then
@@ -57,11 +75,22 @@ end
 
 function WeaponController:EquipWeapon(weapon: Tool)
 	local weaponId = checkUUID(weapon)
+	assert(weaponId, "Weapon has no WeaponUID")
 
 	self.CurrentWeapon = weapon
 	self.CurrentConfig = require(weapon:WaitForChild("XijumConfig"))
-	self.Ammo["Loaded"][weaponId] = self.Ammo["Loaded"][weaponId] or self.CurrentConfig.MagazineSize
-	self.Ammo["Reserve"][weaponId] = self.Ammo["Reserve"][weaponId] or self.CurrentConfig.ReserveAmmo
+
+	-- HARD initialize (only once per weapon lifetime)
+	if self.Ammo.Loaded[weaponId] == nil then
+		self.Ammo.Loaded[weaponId] = self.CurrentConfig.MagazineSize
+	end
+
+	if self.Ammo.Reserve[weaponId] == nil then
+		self.Ammo.Reserve[weaponId] = self.CurrentConfig.ReserveAmmo
+	end
+
+	-- PUSH ammo to client
+	AmmoUpdateRemote:FireClient(self.Player, self.Ammo.Loaded[weaponId], self.Ammo.Reserve[weaponId])
 
 	return true
 end
@@ -87,8 +116,6 @@ end
 ]]
 
 function WeaponController:Fire(fireData)
-	warn("Missing implemation of actual bullet")
-
 	if not self.CurrentWeapon or self.IsReloading then
 		return false
 	end
@@ -111,12 +138,18 @@ function WeaponController:Fire(fireData)
 			damage = self.CurrentConfig.Damage,
 			canPierce = self.CurrentConfig.CanPierce,
 			maxPierces = self.CurrentConfig.MaxPierces,
+			player = self.Player,
 		})
 
 		table.insert(self.Bullets, bullet)
 	end
 
 	self.Ammo["Loaded"][checkUUID(self.CurrentWeapon)] -= 1
+	AmmoUpdateRemote:FireClient(
+		self.Player,
+		self.Ammo.Loaded[checkUUID(self.CurrentWeapon)],
+		self.Ammo.Reserve[checkUUID(self.CurrentWeapon)]
+	)
 	return true
 end
 
@@ -129,14 +162,9 @@ function WeaponController:Reload(weaponId)
 	local reserveAmmo = self.Ammo.Reserve[weaponId] or 0
 	local magSize = self.CurrentConfig.MagazineSize
 
-	local maxLoaded = magSize
-	if loadedAmmo > 0 then
-		maxLoaded = magSize + 1
-	end
-
-	local neededAmmo = maxLoaded - loadedAmmo
+	local neededAmmo = magSize - loadedAmmo
 	if neededAmmo <= 0 or reserveAmmo <= 0 then
-		return true
+		return false
 	end
 
 	self.IsReloading = true
@@ -145,13 +173,20 @@ function WeaponController:Reload(weaponId)
 	local ammoToLoad = math.min(neededAmmo, reserveAmmo)
 	self.Ammo.Loaded[weaponId] = loadedAmmo + ammoToLoad
 	self.Ammo.Reserve[weaponId] = reserveAmmo - ammoToLoad
-
+	AmmoUpdateRemote:FireClient(self.Player, self.Ammo.Loaded[weaponId], self.Ammo.Reserve[weaponId])
 	self.IsReloading = false
 	return true
 end
 
 function WeaponController:GetAmmo(weaponId)
-	return self.Ammo["Loaded"][weaponId] or 0, self.Ammo["Reserve"][weaponId] or 0
+	local loaded = self.Ammo.Loaded[weaponId]
+	local reserve = self.Ammo.Reserve[weaponId]
+
+	if loaded == nil or reserve == nil then
+		return 0, 0
+	end
+
+	return loaded, reserve
 end
 
 -- ============================================================================
@@ -160,6 +195,45 @@ end
 
 function WeaponController:SetAiming(state)
 	self.IsAiming = state
+	if state then
+		-- Enable body aim when aiming
+		if self.BodyAim then
+			self.BodyAim:SetEnabled(true)
+		end
+	else
+		-- Disable body aim when not aiming
+		if self.BodyAim then
+			self.BodyAim:SetEnabled(false)
+		end
+	end
+end
+
+function WeaponController:UpdateAimPitch(pitch)
+	if self.BodyAim then
+		self.BodyAim:UpdatePitch(pitch)
+	end
+end
+
+-- ============================================================================
+-- CHARACTER HANDLER
+-- ============================================================================
+
+function WeaponController:OnCharacterAdded(character: Model)
+	-- Reinitialize BodyAim for the new character
+	if self.BodyAim then
+		self.BodyAim:Destroy()
+		self.BodyAim = nil
+	end
+
+	self.BodyAim = BodyAim.new(character)
+	self.BodyAim:Start()
+end
+
+function WeaponController:OnCharacterRemoving()
+	if self.BodyAim then
+		self.BodyAim:Destroy()
+		self.BodyAim = nil
+	end
 end
 
 return WeaponController

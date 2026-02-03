@@ -9,8 +9,11 @@ return {
 		FiremodeChange = "Xijum_WeaponFiremodeChange",
 		Unequip = "Xijum_WeaponUnequip",
 		Sound = "Xijum_WeaponSound",
+		AimUpdate = "Xijum_WeaponAimUpdate",
+		AmmoUpdateRemote = "Xijum_WeaponAmmoUpdate",
 	},
 	RemoteFunctions = {
 		GetAmmo = "Xijum_WeaponGetAmmoFunction",
+		GenerateGUID = "Xijum_GenerateWeaponUIDFunction",
 	},
 }

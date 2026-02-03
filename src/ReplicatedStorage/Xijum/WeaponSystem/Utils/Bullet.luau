@@ -1,8 +1,5 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
--- ============================================================================
--- SERVICES & INITIALIZATION
--- ============================================================================
+local Workspace = game:GetService("Workspace")
 
 local Xijum = ReplicatedStorage:WaitForChild("Xijum")
 local WeaponSystem = Xijum:WaitForChild("WeaponSystem"):WaitForChild("Utils")
@@ -26,6 +23,7 @@ export type BulletConfig = {
 	damage: number,
 	canPierce: boolean,
 	maxPierces: number,
+	player: Player,
 }
 
 function Bullet.new(startPosition: Vector3, direction: Vector3, config: BulletConfig)
@@ -34,14 +32,23 @@ function Bullet.new(startPosition: Vector3, direction: Vector3, config: BulletCo
 	self.position = startPosition
 	self.direction = direction.Unit
 	self.config = config
+
+	self.shooter = config.player
+	self.shooterCharacter = self.shooter.Character
+
 	self.pierceCount = 0
 	self.hitTargets = {}
 	self.alive = true
 
 	self:_createVisuals()
+	self:_createRaycastParams()
 
 	return self
 end
+
+-- ============================================================================
+-- VISUALS
+-- ============================================================================
 
 function Bullet:_createVisuals()
 	local part = Instance.new("Part")
@@ -50,33 +57,71 @@ function Bullet:_createVisuals()
 	part.Color = self.config.color
 	part.Material = self.config.material
 	part.CanCollide = false
+	part.CanQuery = false
+	part.CanTouch = false
+	part.Anchored = true
 	part.CFrame = CFrame.new(self.position)
-	part.TopSurface = Enum.SurfaceType.Smooth
-	part.BottomSurface = Enum.SurfaceType.Smooth
-	part.Parent = workspace
+	part.Parent = Workspace
 
 	self.part = part
 end
+
+-- ============================================================================
+-- RAYCAST SETUP
+-- ============================================================================
+
+function Bullet:_createRaycastParams()
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = { self.part, self.shooterCharacter }
+	params.IgnoreWater = true
+
+	self.raycastParams = params
+end
+
+-- ============================================================================
+-- UPDATE
+-- ============================================================================
 
 function Bullet:update(deltaTime: number)
 	if not self.alive then
 		return
 	end
 
-	self.position = self.position + (self.direction * self.config.speed * deltaTime)
-	self.part.CFrame = CFrame.new(self.position)
-	self.config.lifetime -= deltaTime
+	local travelDistance = self.config.speed * deltaTime
+	local nextPosition = self.position + (self.direction * travelDistance)
+	local rayDirection = nextPosition - self.position
 
+	local result = Workspace:Raycast(self.position, rayDirection, self.raycastParams)
+
+	if result then
+		self:_processHit(result)
+	else
+		self.position = nextPosition
+		self.part.CFrame = CFrame.new(self.position)
+	end
+
+	self.config.lifetime -= deltaTime
 	if self.config.lifetime <= 0 then
 		self:destroy()
 	end
 end
 
-function Bullet:onHit(hitPart: BasePart)
+-- ============================================================================
+-- HIT HANDLING
+-- ============================================================================
+
+function Bullet:_processHit(result: RaycastResult)
+	local hitPart = result.Instance
+
+	-- Move bullet to impact point
+	self.position = result.Position
+	self.part.CFrame = CFrame.new(self.position)
+
+	-- Prevent multi-hitting same target
 	if self.hitTargets[hitPart] then
 		return
 	end
-
 	self.hitTargets[hitPart] = true
 
 	local isValid, characterData = HitValidation.HitValidationDetection(hitPart)
@@ -86,10 +131,22 @@ function Bullet:onHit(hitPart: BasePart)
 
 	if not self.config.canPierce or self.pierceCount >= self.config.maxPierces then
 		self:destroy()
-	else
-		self.pierceCount += 1
+		return
 	end
+
+	-- Prepare for next pierce
+	self.pierceCount += 1
+
+	-- Blacklist the hit part so we don't hit it again
+	table.insert(self.raycastParams.FilterDescendantsInstances, hitPart)
+
+	-- Slightly advance bullet to avoid re-hitting same surface
+	self.position += self.direction * 0.01
 end
+
+-- ============================================================================
+-- CLEANUP
+-- ============================================================================
 
 function Bullet:destroy()
 	self.alive = false

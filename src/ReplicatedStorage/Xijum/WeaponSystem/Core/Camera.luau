@@ -140,7 +140,7 @@ function Camera:ToggleMode(mode)
 		-- Lock the mouse so camera can rotate
 		self:SetMouseLocked(true)
 		UserInputService.MouseIconEnabled = true
-		UserInputService.MouseIcon = "11984821475"
+		self.player:GetMouse().Icon = "http://www.roblox.com/asset?id=15332665653"
 
 		-- Sync initial yaw/pitch from character
 		local character = self.player.Character
@@ -154,7 +154,7 @@ function Camera:ToggleMode(mode)
 		-- Orbital mode behavior
 		self:SetMouseLocked(true)
 		UserInputService.MouseIconEnabled = false
-		UserInputService.MouseIcon = ""
+		self.player:GetMouse().Icon = ""
 
 		-- Enable autorotate
 		local character = self.player.Character
@@ -314,6 +314,23 @@ function Camera:ApplyRecoilToCamera()
 
 	-- Apply recoil as position offset
 	self.recoilOffset = Vector3.new(recoil.X * 0.15, -recoil.Y * 0.2, 0)
+end
+
+-- ============================================================================
+-- DIED
+-- ============================================================================
+
+function Camera:PlayerDied()
+	self.isActive = false
+
+	local cam = workspace.CurrentCamera
+	cam.CameraType = Enum.CameraType.Custom
+	cam.CameraSubject = nil
+	cam.FieldOfView = 70
+
+	UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+	UserInputService.MouseIconEnabled = true
+	self.player:GetMouse().Icon = ""
 end
 
 return Camera

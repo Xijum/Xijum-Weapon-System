@@ -31,9 +31,12 @@ local RemotesEvents = {
 	FiremodeChange = createRemote(RemoteNames.RemoteEvents.FiremodeChange),
 	Unequip = createRemote(RemoteNames.RemoteEvents.Unequip),
 	Sound = createRemote(RemoteNames.RemoteEvents.Sound),
+	AimUpdate = createRemote(RemoteNames.RemoteEvents.AimUpdate),
+	AmmoUpdateRemote = createRemote(RemoteNames.RemoteEvents.AmmoUpdateRemote),
 }
 local RemotesFunctions = {
 	GetAmmo = createRemoteFunction(RemoteNames.RemoteFunctions.GetAmmo),
+	GenerateGUID = createRemoteFunction(RemoteNames.RemoteFunctions.GenerateGUID),
 }
 
 function log(player, action, details)
@@ -83,9 +86,30 @@ RemotesEvents.Sound.OnServerEvent:Connect(function(player, soundId)
 	end
 end)
 
+RemotesEvents.AimUpdate.OnServerEvent:Connect(function(player, isAiming)
+	--log(player, "AimUpdate", "Aiming update: " .. tostring(isAiming))
+end)
+
+RemotesEvents.AmmoUpdateRemote.OnServerEvent:Connect(function(player, weaponId, currentAmmo, reserveAmmo)
+	log(
+		player,
+		"AmmoUpdate",
+		string.format(
+			"Weapon ID: %s | Current Ammo: %d | Reserve Ammo: %d",
+			tostring(weaponId),
+			currentAmmo,
+			reserveAmmo
+		)
+	)
+end)
+
 RemotesFunctions.GetAmmo.OnServerInvoke = function(player, weaponId)
 	log(player, "GetAmmo", "Requested ammo for weapon ID: " .. tostring(weaponId))
 	return 15 -- Placeholder value
+end
+
+RemotesFunctions.GenerateGUID.OnServerInvoke = function(player)
+	log(player, "GenerateGUID", "Requested new weapon GUID")
 end
 
 print("[XijumWeaponSystem] Remotes created")
