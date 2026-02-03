@@ -1,0 +1,57 @@
+--// Services
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+--// Player & Camera
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+
+--// Target
+local target = workspace:WaitForChild("SpawnLocation")
+
+--// SETTINGS
+local DISTANCE = 20
+local HEIGHT_OFFSET = 4
+
+local SENSITIVITY = 0.15
+local MIN_PITCH = -80
+local MAX_PITCH = 80
+
+local CAMERA_SMOOTHNESS = 14 -- higher = snappier (12–20 sweet spot)
+
+--// State
+local yaw = 0
+local pitch = 0
+local smoothCFrame = camera.CFrame
+
+--// Camera setup
+camera.CameraType = Enum.CameraType.Scriptable
+UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+UserInputService.MouseIconEnabled = false
+
+--// Mouse input (NO SMOOTHING = NO LAG)
+UserInputService.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement then
+		yaw -= input.Delta.X * SENSITIVITY
+		pitch -= input.Delta.Y * SENSITIVITY
+		pitch = math.clamp(pitch, MIN_PITCH, MAX_PITCH)
+	end
+end)
+
+--// Update
+RunService.RenderStepped:Connect(function(dt)
+	-- Rotation from input
+	local rotation = CFrame.fromEulerAnglesYXZ(math.rad(pitch), math.rad(yaw), 0)
+
+	-- Focus point
+	local focus = target.Position + Vector3.new(0, HEIGHT_OFFSET, 0)
+
+	-- Desired camera transform
+	local desiredCFrame = CFrame.new(focus + rotation * Vector3.new(0, 0, DISTANCE), focus)
+
+	-- Smooth camera movement (no input delay)
+	smoothCFrame = smoothCFrame:Lerp(desiredCFrame, 1 - math.exp(-CAMERA_SMOOTHNESS * dt))
+
+	camera.CFrame = smoothCFrame
+end)

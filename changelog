@@ -1,0 +1,27 @@
+# Changelog
+
+## [Unreleased]
+## v0.0.4
+
+### Added
+- New weapon system features
+- Recoil and spread mechanics
+- Camera controller implementation
+- Raycast system for hit detection
+
+### Changed
+- Updated WeaponController logic
+- Improved WeaponState management
+- Enhanced DamageService validation
+
+### Fixed
+- HitValidation edge cases
+
+### Removed
+- Legacy weapon configurations
+
+## Pending
+- Playest
+- Animations creation and uploading
+- Raycast implementation
+- Bullet trails

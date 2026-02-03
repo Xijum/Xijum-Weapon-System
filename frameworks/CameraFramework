@@ -1,0 +1,153 @@
+--// Services
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
+--// Player & Camera
+local player = Players.LocalPlayer
+local camera = Workspace.CurrentCamera
+local mouse = player:GetMouse()
+
+--// SETTINGS
+local OTS_SIDE_OFFSET = 3
+local OTS_HEIGHT = 2.2
+local OTS_DISTANCE = 8
+
+local ORBIT_DISTANCE = 10
+local ORBIT_HEIGHT = 2.5
+
+local SENSITIVITY = 0.25
+local SMOOTHNESS = 0.12
+
+--// State
+local mode = "OTS" -- "OTS" or "ORBITAL"
+local yaw, pitch = 0, 0
+
+--// Character
+local character
+local root
+local humanoid
+
+--// Camera smoothing
+local currentCF = CFrame.new()
+
+--// Raycast params (camera collision)
+local rayParams = RaycastParams.new()
+rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+
+--// Logging
+local function logMode()
+	warn("[Camera] Current mode:", mode)
+end
+
+--// Character setup
+local function onCharacterAdded(char)
+	character = char
+	root = char:WaitForChild("HumanoidRootPart")
+	humanoid = char:WaitForChild("Humanoid")
+
+	humanoid.AutoRotate = false
+	rayParams.FilterDescendantsInstances = { character }
+
+	camera.CameraType = Enum.CameraType.Scriptable
+	currentCF = camera.CFrame
+
+	logMode()
+end
+
+player.CharacterAdded:Connect(onCharacterAdded)
+if player.Character then
+	onCharacterAdded(player.Character)
+end
+
+--// Mouse input (camera control)
+UserInputService.InputChanged:Connect(function(input, gpe)
+	if gpe then
+		return
+	end
+	if input.UserInputType == Enum.UserInputType.MouseMovement then
+		yaw -= input.Delta.X * SENSITIVITY
+		pitch -= input.Delta.Y * SENSITIVITY
+		pitch = math.clamp(pitch, -65, 70)
+	end
+end)
+
+--// Mode toggle
+UserInputService.InputBegan:Connect(function(input, gpe)
+	if gpe then
+		return
+	end
+	if input.KeyCode == Enum.KeyCode.V then
+		mode = (mode == "OTS") and "ORBITAL" or "OTS"
+		logMode()
+	end
+end)
+
+--// Camera collision
+local function applyCameraCollision(origin, desiredPos)
+	local direction = desiredPos - origin
+	local result = Workspace:Raycast(origin, direction, rayParams)
+
+	if result then
+		return result.Position - direction.Unit * 0.3
+	end
+
+	return desiredPos
+end
+
+--// Camera update
+RunService.RenderStepped:Connect(function()
+	if not root or not humanoid then
+		return
+	end
+
+	local targetCF
+	local horizontalCF = CFrame.Angles(0, math.rad(yaw), 0)
+	local verticalCF = CFrame.Angles(math.rad(pitch), 0, 0)
+
+	if mode == "OTS" then
+		-- OTS INPUT MODE
+		humanoid.AutoRotate = false
+		UserInputService.MouseBehavior = Enum.MouseBehavior.LockCurrentPosition
+		UserInputService.MouseIconEnabled = true
+
+		-- PURE YAW ROTATION (NO DRIFT)
+		local _, y, _ = horizontalCF:ToEulerAnglesYXZ()
+		root.CFrame = CFrame.new(root.Position) * CFrame.Angles(0, y, 0)
+
+		-- Camera position (guaranteed behind player)
+		local desiredPos = root.Position
+			- root.CFrame.LookVector * OTS_DISTANCE
+			+ root.CFrame.RightVector * OTS_SIDE_OFFSET
+			+ Vector3.new(0, OTS_HEIGHT, 0)
+
+		local focusPoint = root.Position + Vector3.new(0, 1.6, 0)
+		local safePos = applyCameraCollision(focusPoint, desiredPos)
+
+		targetCF = CFrame.new(safePos, focusPoint)
+	else
+		-- ORBITAL INPUT MODE
+		humanoid.AutoRotate = true
+		UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+		UserInputService.MouseIconEnabled = false
+
+		local rot = horizontalCF * verticalCF
+		local pivot = root.Position + Vector3.new(0, ORBIT_HEIGHT, 0)
+		local desiredPos = pivot - (rot.LookVector * ORBIT_DISTANCE)
+
+		local safePos = applyCameraCollision(pivot, desiredPos)
+		targetCF = CFrame.new(safePos, pivot)
+	end
+
+	-- Smooth camera
+	currentCF = currentCF:Lerp(targetCF, SMOOTHNESS)
+	camera.CFrame = currentCF
+end)
+
+--// OPTIONAL: SHOOT DIRECTION HELPER (USE THIS IN YOUR GUN SCRIPT)
+-- local function getShootDirection()
+-- 	local origin = camera.CFrame.Position
+-- 	local hitPos = mouse.Hit.Position
+-- 	return (hitPos - origin).Unit
+-- end
