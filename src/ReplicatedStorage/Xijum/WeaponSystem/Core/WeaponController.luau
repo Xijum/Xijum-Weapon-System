@@ -11,6 +11,7 @@ local Remotes = WeaponSystem:WaitForChild("Remotes")
 local Raycast = require(WeaponSystem:WaitForChild("Utils"):WaitForChild("Raycast"))
 local Bullet = require(WeaponSystem:WaitForChild("Utils"):WaitForChild("Bullet"))
 local BodyAim = require(WeaponSystem:WaitForChild("Utils"):WaitForChild("BodyAim"))
+local BulletCase = require(WeaponSystem:WaitForChild("Utils"):WaitForChild("BulletCase"))
 
 local AmmoUpdateRemote = Remotes:WaitForChild(RemoteNames.RemoteEvents.AmmoUpdateRemote)
 
@@ -150,7 +151,39 @@ function WeaponController:Fire(fireData)
 		self.Ammo.Loaded[checkUUID(self.CurrentWeapon)],
 		self.Ammo.Reserve[checkUUID(self.CurrentWeapon)]
 	)
+
+	BulletCase.new(fireData.weapon:FindFirstChild("EjectAttachment")):eject()
 	return true
+end
+
+-- Helper function to duplciate mag and drop it to make it immersive
+function WeaponController:DropMagazine(reloadTime)
+	if not self.CurrentWeapon then
+		return
+	end
+
+	local magOriginal = self.CurrentWeapon:FindFirstChild("Magazine")
+	if not magOriginal then
+		return
+	end
+	magOriginal.Transparency = 1
+
+	local magazine = magOriginal:Clone()
+	magazine.CFrame = magOriginal.CFrame
+	magazine.Parent = workspace
+
+	-- Add physics to the dropped magazine
+	local bodyVelocity = Instance.new("BodyVelocity")
+	bodyVelocity.Velocity = (magazine.CFrame.LookVector + Vector3.new(0, 1, 0)) * 10
+	bodyVelocity.MaxForce = Vector3.new(1000, 1000, 1000)
+	bodyVelocity.Parent = magazine
+
+	task.wait(reloadTime)
+
+	magOriginal.Transparency = 0
+
+	-- Clean up after some time
+	game.Debris:AddItem(magazine, 10)
 end
 
 function WeaponController:Reload(weaponId)
@@ -166,6 +199,8 @@ function WeaponController:Reload(weaponId)
 	if neededAmmo <= 0 or reserveAmmo <= 0 then
 		return false
 	end
+
+	self:DropMagazine(self.CurrentConfig.ReloadTime)
 
 	self.IsReloading = true
 	task.wait(self.CurrentConfig.ReloadTime)

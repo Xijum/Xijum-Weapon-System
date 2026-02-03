@@ -1,4 +1,5 @@
 local Players = game:GetService("Players")
+local RenderSettings = game:GetService("RenderSettings")
 local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -8,7 +9,6 @@ local RunService = game:GetService("RunService")
 -- ============================================================================
 
 local player = Players.LocalPlayer
-local mouse = player:GetMouse()
 
 local Xijum = ReplicatedStorage:WaitForChild("Xijum")
 local WeaponSystem = Xijum:WaitForChild("WeaponSystem")
@@ -19,6 +19,8 @@ local RemoteNames = require(WeaponSystem:WaitForChild("RemotesDefinitions"))
 local Remotes = WeaponSystem:WaitForChild("Remotes")
 
 local WeaponHUD = require(WeaponSystem:WaitForChild("Utils"):WaitForChild("WeaponHUD"))
+local HitValidation = require(WeaponSystem:WaitForChild("Utils"):WaitForChild("HitValidation"))
+local Raycast = require(WeaponSystem:WaitForChild("Utils"):WaitForChild("Raycast"))
 
 local EquipRemote = Remotes:WaitForChild(RemoteNames.RemoteEvents.Equip)
 local FireRemote = Remotes:WaitForChild(RemoteNames.RemoteEvents.Fire)
@@ -48,6 +50,7 @@ function WeaponClient.new()
 	self.WeaponHUD = nil
 	self.AnimationHandler = AnimationHandler.new()
 	self.Camera = Camera.new()
+	self.Ray = Raycast.new()
 	self:AttachCamera()
 
 	-- self.Firemode['UID'] = "Auto"
@@ -169,6 +172,7 @@ function WeaponClient:ToggleAiming(isAiming)
 		return
 	end
 	self.IsAiming = isAiming
+	self.WeaponHUD:setCrosshairVisible(isAiming)
 	if isAiming then
 		self:PlayAnimation("Aim")
 		self:ActivateCamera()
@@ -179,6 +183,15 @@ function WeaponClient:ToggleAiming(isAiming)
 	AimRemote:FireServer(isAiming)
 
 	self:PlaySound("Local", "Aim")
+
+	self._aimConnection = RunService.RenderStepped:Connect(function()
+		local origin = workspace.CurrentCamera.CFrame.Position
+		local direction = workspace.CurrentCamera.CFrame.LookVector
+		local hitPart = self.Ray:PerformRaycast(origin, direction, { self.CurrentWeapon, self.player.Character })
+		local isValid, _ = HitValidation.HitValidationDetection(hitPart)
+
+		self.WeaponHUD:setCrosshairActive(isValid)
+	end)
 end
 
 function WeaponClient:ActivateCamera()
@@ -260,7 +273,7 @@ function WeaponClient:CanFire()
 	if self:GetReloadingState() then
 		return false
 	end
-	local ammo, reserve = GetAmmoFunction:InvokeServer(self.CurrentWeaponUID)
+	local ammo, _ = GetAmmoFunction:InvokeServer(self.CurrentWeaponUID)
 	if ammo <= 0 then
 		self:PlaySound("Local", "EmptyClick")
 		warn("a")
@@ -465,6 +478,14 @@ function WeaponClient:BindInput()
 			end
 		end)
 	end)
+end
+
+function WeaponClient:HitmarkerFeedback(hit: boolean)
+	if self.WeaponHUD then
+		self.WeaponHUD:showHitmarker(hit)
+	end
+
+	self:PlaySound("Local", "Hitmarker")
 end
 
 function WeaponClient:OnCharacterDied()

@@ -16,6 +16,8 @@ function WeaponHUD.new(hudFrame: Frame)
 	self.gunNameLabel = hudFrame:FindFirstChild("WeaponName")
 	self.fireModeLabel = hudFrame:FindFirstChild("WeaponFiremode")
 
+	self.player = game:GetService("Players").LocalPlayer
+
 	-- Main ammo label
 	self.ammoLabel = hudFrame:FindFirstChild("WeaponAmmo")
 	self.ammoLabel.TextTransparency = 0
@@ -90,6 +92,46 @@ function WeaponHUD:setEnabled(enabled: boolean)
 			self.hud.Visible = false
 		end)
 	end
+end
+
+--// Show hitmarker effect
+function WeaponHUD:showHitmarker(hit: boolean)
+	local hitmarker = self.hud:FindFirstChild("Hitmarker")
+	if not hitmarker then
+		return
+	end
+
+	hitmarker.Visible = true
+	hitmarker.ImageTransparency = 0
+
+	local tween = TweenService:Create(hitmarker, self.fadeTween, {
+		ImageTransparency = 1,
+	})
+	tween:Play()
+	tween.Completed:Once(function()
+		hitmarker.Visible = false
+	end)
+end
+
+-- Crosshair stuff
+
+function WeaponHUD:setCrosshairVisible(visible: boolean)
+	local crosshair = self.hud:FindFirstChild("Crosshair")
+	if not crosshair then
+		return
+	end
+
+	crosshair.Visible = visible
+end
+
+--// Change crosshair color if aiming an active target
+function WeaponHUD:setCrosshairActive(active: boolean)
+	local crosshair = self.hud:FindFirstChild("Crosshair")
+	if not crosshair then
+		return
+	end
+
+	crosshair.ImageColor3 = active and Color3.new(1, 0, 0) or Color3.new(1, 1, 1)
 end
 
 return WeaponHUD

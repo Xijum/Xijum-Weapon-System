@@ -10,7 +10,9 @@ return {
 		Unequip = "Xijum_WeaponUnequip",
 		Sound = "Xijum_WeaponSound",
 		AimUpdate = "Xijum_WeaponAimUpdate",
+
 		AmmoUpdateRemote = "Xijum_WeaponAmmoUpdate",
+		HitmarkerRemote = "Xijum_WeaponHitmarker",
 	},
 	RemoteFunctions = {
 		GetAmmo = "Xijum_WeaponGetAmmoFunction",

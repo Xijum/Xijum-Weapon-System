@@ -8,6 +8,7 @@ local RemoteNames = require(WeaponSystem:WaitForChild("RemotesDefinitions"))
 local Remotes = WeaponSystem:WaitForChild("Remotes")
 
 local AmmoUpdateRemote = Remotes:WaitForChild(RemoteNames.RemoteEvents.AmmoUpdateRemote)
+local HitmarkerRemote = Remotes:WaitForChild(RemoteNames.RemoteEvents.HitmarkerRemote)
 
 local controller = WeaponClient.new()
 
@@ -23,6 +24,10 @@ end)
 
 AmmoUpdateRemote.OnClientEvent:Connect(function(currentAmmo: number, reserveAmmo: number)
 	controller.WeaponHUD:setAmmo(currentAmmo, reserveAmmo)
+end)
+
+HitmarkerRemote.OnClientEvent:Connect(function(hit: boolean)
+	controller:HitmarkerFeedback(hit)
 end)
 
 print("[XijumWeaponSystem] Client successfully started!")

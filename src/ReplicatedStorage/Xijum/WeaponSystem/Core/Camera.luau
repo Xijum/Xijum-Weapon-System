@@ -140,7 +140,6 @@ function Camera:ToggleMode(mode)
 		-- Lock the mouse so camera can rotate
 		self:SetMouseLocked(true)
 		UserInputService.MouseIconEnabled = true
-		self.player:GetMouse().Icon = "http://www.roblox.com/asset?id=15332665653"
 
 		-- Sync initial yaw/pitch from character
 		local character = self.player.Character
@@ -154,7 +153,6 @@ function Camera:ToggleMode(mode)
 		-- Orbital mode behavior
 		self:SetMouseLocked(true)
 		UserInputService.MouseIconEnabled = false
-		self.player:GetMouse().Icon = ""
 
 		-- Enable autorotate
 		local character = self.player.Character

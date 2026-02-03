@@ -2,10 +2,16 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local Xijum = ReplicatedStorage:WaitForChild("Xijum")
-local WeaponSystem = Xijum:WaitForChild("WeaponSystem"):WaitForChild("Utils")
+local WeaponSystem = Xijum:WaitForChild("WeaponSystem")
 
-local HitValidation = require(WeaponSystem:WaitForChild("HitValidation"))
-local DamageService = require(WeaponSystem:WaitForChild("DamageService"))
+local RemoteNames = require(WeaponSystem:WaitForChild("RemotesDefinitions"))
+local Remotes = WeaponSystem:WaitForChild("Remotes")
+
+local HitmarkerRemote = Remotes:WaitForChild(RemoteNames.RemoteEvents.HitmarkerRemote)
+
+local HitValidation = require(WeaponSystem:WaitForChild("Utils"):WaitForChild("HitValidation"))
+local DamageService = require(WeaponSystem:WaitForChild("Utils"):WaitForChild("DamageService"))
+local BulletEffect = require(WeaponSystem:WaitForChild("Utils"):WaitForChild("BulletEffect"))
 
 -- ============================================================================
 -- CLASS DEFINITION
@@ -127,7 +133,15 @@ function Bullet:_processHit(result: RaycastResult)
 	local isValid, characterData = HitValidation.HitValidationDetection(hitPart)
 	if isValid then
 		DamageService.ApplyDamage(characterData, self.config.damage)
+		HitmarkerRemote:FireClient(self.shooter, true)
 	end
+
+	BulletEffect.createImpactEffect(
+		hitPart,
+		result.Position,
+		isValid,
+		{ decalSize = 1, decalLifetime = 30, soundVolume = 0.5 }
+	)
 
 	if not self.config.canPierce or self.pierceCount >= self.config.maxPierces then
 		self:destroy()
