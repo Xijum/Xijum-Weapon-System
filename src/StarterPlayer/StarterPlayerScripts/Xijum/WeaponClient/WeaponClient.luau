@@ -184,14 +184,23 @@ function WeaponClient:ToggleAiming(isAiming)
 
 	self:PlaySound("Local", "Aim")
 
-	self._aimConnection = RunService.RenderStepped:Connect(function()
-		local origin = workspace.CurrentCamera.CFrame.Position
-		local direction = workspace.CurrentCamera.CFrame.LookVector
-		local hitPart = self.Ray:PerformRaycast(origin, direction, { self.CurrentWeapon, self.player.Character })
-		local isValid, _ = HitValidation.HitValidationDetection(hitPart)
+	if isAiming then
+		self._CrosshairConnection = RunService.Heartbeat:Connect(function()
+			if self.WeaponHUD then
+				local origin = workspace.CurrentCamera.CFrame.Position
+				local direction = workspace.CurrentCamera.CFrame.LookVector
 
-		self.WeaponHUD:setCrosshairActive(isValid)
-	end)
+				local hitPart = self.Ray:PerformRaycast(origin, direction, { player.Character })
+				local isValid, _ = HitValidation.HitValidationDetection(hitPart)
+				self.WeaponHUD:setCrosshairActive(isValid)
+			end
+		end)
+	else
+		if self._CrosshairConnection then
+			self._CrosshairConnection:Disconnect()
+			self._CrosshairConnection = nil
+		end
+	end
 end
 
 function WeaponClient:ActivateCamera()
@@ -425,6 +434,8 @@ function WeaponClient:BindInput()
 			self:Reload()
 		elseif input.KeyCode == Enum.KeyCode.V then
 			self:ToggleFireMode()
+		elseif input.KeyCode == Enum.KeyCode.T then
+			self.Camera:ToggleOTSSide()
 		elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
 			self:ToggleAiming(true)
 		end

@@ -121,7 +121,10 @@ function WeaponHUD:setCrosshairVisible(visible: boolean)
 		return
 	end
 
-	crosshair.Visible = visible
+	local tween = TweenService:Create(crosshair, self.fadeTween, {
+		ImageTransparency = visible and 0 or 1,
+	})
+	tween:Play()
 end
 
 --// Change crosshair color if aiming an active target
@@ -131,7 +134,10 @@ function WeaponHUD:setCrosshairActive(active: boolean)
 		return
 	end
 
-	crosshair.ImageColor3 = active and Color3.new(1, 0, 0) or Color3.new(1, 1, 1)
+	local tween = TweenService:Create(crosshair, self.fastTween, {
+		ImageColor3 = active and Color3.new(1, 0, 0) or Color3.new(1, 1, 1),
+	})
+	tween:Play()
 end
 
 return WeaponHUD

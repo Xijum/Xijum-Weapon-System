@@ -42,6 +42,7 @@ function Camera.new(config)
 	self.targetCFrame = CFrame.new()
 	self.targetFOV = 70
 	self.isAiming = false
+	self.otsSide = "Right" -- "Right" | "Left"
 
 	-- Settings
 
@@ -165,6 +166,18 @@ function Camera:ToggleMode(mode)
 	end
 end
 
+function Camera:ToggleOTSSide()
+	if self.cameraMode ~= "OTS" then
+		return
+	end
+
+	if self.otsSide == "Right" then
+		self.otsSide = "Left"
+	else
+		self.otsSide = "Right"
+	end
+end
+
 -- ============================================================================
 -- UPDATE LOOP
 -- ============================================================================
@@ -209,6 +222,10 @@ function Camera:UpdateOTSCamera(rootPart)
 	self.otsPitch = math.clamp(self.otsPitch, math.rad(-40), math.rad(40))
 
 	local otsOffset = self.config.Camera.OTS_Offset or Vector3.new(1.8, 1.2, -3)
+
+	if self.otsSide == "Left" then
+		otsOffset = Vector3.new(-otsOffset.X, otsOffset.Y, otsOffset.Z)
+	end
 
 	local humanoid = rootPart.Parent:FindFirstChildOfClass("Humanoid")
 	if humanoid then

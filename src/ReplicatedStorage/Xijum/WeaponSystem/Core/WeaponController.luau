@@ -12,6 +12,7 @@ local Raycast = require(WeaponSystem:WaitForChild("Utils"):WaitForChild("Raycast
 local Bullet = require(WeaponSystem:WaitForChild("Utils"):WaitForChild("Bullet"))
 local BodyAim = require(WeaponSystem:WaitForChild("Utils"):WaitForChild("BodyAim"))
 local BulletCase = require(WeaponSystem:WaitForChild("Utils"):WaitForChild("BulletCase"))
+local Holster = require(WeaponSystem:WaitForChild("Utils"):WaitForChild("Holster"))
 
 local AmmoUpdateRemote = Remotes:WaitForChild(RemoteNames.RemoteEvents.AmmoUpdateRemote)
 
@@ -37,6 +38,8 @@ function WeaponController.new(player)
 		Reserve = {},
 	}
 	self.Bullets = {}
+	--self.HolsterWeapons['player']['weaponId] = createHolster(character)
+	self.HolsterWeapons = {}
 
 	-- On the server side, you should use Heartbeat instead of RenderStepped.
 	-- Place this in a server script context (not in a LocalScript).
@@ -93,10 +96,24 @@ function WeaponController:EquipWeapon(weapon: Tool)
 	-- PUSH ammo to client
 	AmmoUpdateRemote:FireClient(self.Player, self.Ammo.Loaded[weaponId], self.Ammo.Reserve[weaponId])
 
+	-- Check if weapon holster class has been created
+	if not self.HolsterWeapons[self.Player.UserId][weaponId] then
+		self.HolsterWeapons[self.Player.UserId][weaponId] =
+			Holster(self.Player.Character or self.Player.CharacterAdded:Wait()):registerWeapon()(weapon)
+	end
+
+	if self.HolsterWeapons[self.Player.UserId][weaponId] then
+		self.HolsterWeapons[self.Player.UserId][weaponId]:unholster(weapon)
+	end
+
 	return true
 end
 
 function WeaponController:UnequipWeapon()
+	if self.HolsterWeapons[self.Player.UserId][self.CurrentWeapon] then
+		self.HolsterWeapons[self.Player.UserId][self.CurrentWeapon]:holster(self.CurrentWeapon)
+	end
+
 	self.CurrentWeapon = nil
 	self.CurrentConfig = nil
 	self.IsAiming = false

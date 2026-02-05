@@ -5,7 +5,6 @@ local Xijum = ReplicatedStorage:WaitForChild("Xijum")
 local WeaponSystem = Xijum:WaitForChild("WeaponSystem")
 local RemoteNames = require(WeaponSystem:WaitForChild("RemotesDefinitions"))
 local Remotes = WeaponSystem:WaitForChild("Remotes")
-warn(Remotes)
 
 -- ============================================================================
 -- WEAPON SERVICE
