@@ -26,10 +26,11 @@ export type BulletConfig = {
 	size: Vector3,
 	color: Color3,
 	material: Enum.Material,
-	damage: number,
+	damage: {},
 	canPierce: boolean,
 	maxPierces: number,
 	player: Player,
+	caseType: string,
 }
 
 function Bullet.new(startPosition: Vector3, direction: Vector3, config: BulletConfig)
@@ -40,6 +41,7 @@ function Bullet.new(startPosition: Vector3, direction: Vector3, config: BulletCo
 	self.config = config
 
 	self.shooter = config.player
+	warn(self.shooter)
 	self.shooterCharacter = self.shooter.Character
 
 	self.pierceCount = 0
@@ -130,19 +132,26 @@ function Bullet:_processHit(result: RaycastResult)
 	end
 	self.hitTargets[hitPart] = true
 
+	-- Validate hit
 	local isValid, characterData = HitValidation.HitValidationDetection(hitPart)
 	if isValid then
-		DamageService.ApplyDamage(characterData, self.config.damage)
+		DamageService.ApplyDamage(characterData, self.config.damage.Default)
 		HitmarkerRemote:FireClient(self.shooter, true)
 	end
 
 	BulletEffect.createImpactEffect(
 		hitPart,
 		result.Position,
+		result.Normal, -- << REQUIRED AFTER REFACTOR
 		isValid,
-		{ decalSize = 1, decalLifetime = 30, soundVolume = 0.5 }
+		{
+			decalSize = 1,
+			decalLifetime = 30,
+			soundVolume = 0.5,
+		}
 	)
 
+	-- Stop bullet if no pierce
 	if not self.config.canPierce or self.pierceCount >= self.config.maxPierces then
 		self:destroy()
 		return
@@ -151,10 +160,10 @@ function Bullet:_processHit(result: RaycastResult)
 	-- Prepare for next pierce
 	self.pierceCount += 1
 
-	-- Blacklist the hit part so we don't hit it again
+	-- Blacklist hit part
 	table.insert(self.raycastParams.FilterDescendantsInstances, hitPart)
 
-	-- Slightly advance bullet to avoid re-hitting same surface
+	-- Advance slightly to avoid re-hit
 	self.position += self.direction * 0.01
 end
 

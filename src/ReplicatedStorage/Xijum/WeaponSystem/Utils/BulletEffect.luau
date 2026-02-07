@@ -1,8 +1,9 @@
-local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Debris = game:GetService("Debris")
 
 -- ============================================================================
--- CLASS DEFINITION
+-- CLASS
 -- ============================================================================
 
 local BulletEffect = {}
@@ -15,10 +16,14 @@ export type EffectConfig = {
 }
 
 local DEFAULT_CONFIG: EffectConfig = {
-	decalSize = 1,
+	decalSize = 0.4,
 	decalLifetime = 30,
 	soundVolume = 0.5,
 }
+
+-- ============================================================================
+-- SOUNDS
+-- ============================================================================
 
 local MATERIAL_SOUNDS = {
 	[Enum.Material.Concrete] = "rbxassetid://142082166",
@@ -38,125 +43,138 @@ local DEFAULT_SOUND = "rbxassetid://8636404035"
 local BLOOD_SOUND = "rbxassetid://76525344270919"
 
 -- ============================================================================
--- PUBLIC METHODS
+-- PUBLIC API
 -- ============================================================================
 
 function BulletEffect.createImpactEffect(
 	hitPart: BasePart,
 	hitPosition: Vector3,
+	hitNormal: Vector3,
 	isPlayer: boolean,
 	config: EffectConfig
 )
 	config = config or DEFAULT_CONFIG
 
 	if isPlayer then
-		BulletEffect:_createBloodEffect(hitPart, hitPosition, config)
+		BulletEffect:_createBloodEffect(hitPart, hitPosition, hitNormal, config)
 	else
-		BulletEffect:_createBulletHole(hitPart, hitPosition, config)
+		BulletEffect:_createBulletHole(hitPart, hitPosition, hitNormal, config)
 	end
 end
 
 -- ============================================================================
--- PRIVATE METHODS
+-- BLOOD
 -- ============================================================================
 
-function BulletEffect:_createBloodEffect(hitPart: BasePart, hitPosition: Vector3, config: EffectConfig)
-	-- Create blood particle emitter
+function BulletEffect:_createBloodEffect(
+	hitPart: BasePart,
+	hitPosition: Vector3,
+	hitNormal: Vector3,
+	config: EffectConfig
+)
 	local attachment = Instance.new("Attachment")
-	attachment.Parent = hitPart
 	attachment.WorldPosition = hitPosition
+	attachment.Parent = Workspace.Terrain
 
-	local emitter = game:GetService("ReplicatedStorage")
-		:WaitForChild("Xijum")
+	local emitter = ReplicatedStorage:WaitForChild("Xijum")
 		:WaitForChild("WeaponSystem")
 		:WaitForChild("Assets")
 		:WaitForChild("BloodEmitter")
 		:Clone()
-	emitter.Enabled = false
-	emitter:Emit(1000)
 
 	emitter.Parent = attachment
+	emitter.Enabled = false
+	emitter:Emit(25)
 
-	-- Play blood sound
-	--BulletEffect:_playSound(hitPosition, BLOOD_SOUND, config.soundVolume)
+	BulletEffect:_playSound(hitPosition, BLOOD_SOUND, config.soundVolume)
 
-	-- Clean up after lifetime
-	game:GetService("Debris"):AddItem(attachment, 0.5)
+	Debris:AddItem(attachment, 0.5)
 end
 
-function BulletEffect:_createBulletHole(hitPart: BasePart, hitPosition: Vector3, config: EffectConfig)
-	-- Create bullet hole decal
+-- ============================================================================
+-- BULLET HOLE
+-- ============================================================================
 
-	local decalHolder = Instance.new("Part")
-	decalHolder.Anchored = true
-	decalHolder.Size = Vector3.new(config.decalSize, config.decalSize, 0.1)
-	decalHolder.Position = hitPosition + (hitPart.CFrame.LookVector * 0.01)
-	decalHolder.CFrame = hitPart.CFrame * CFrame.new(hitPart.CFrame.LookVector * 0.01)
-	decalHolder.Parent = hitPart
+function BulletEffect:_createBulletHole(
+	hitPart: BasePart,
+	hitPosition: Vector3,
+	hitNormal: Vector3,
+	config: EffectConfig
+)
+	-- Thin bullet hole part
+	local hole = Instance.new("Part")
+	hole.Size = Vector3.new(config.decalSize, config.decalSize, 0.01)
+	hole.Anchored = false
+	hole.CanCollide = false
+	hole.CanTouch = false
+	hole.CanQuery = false
+	hole.Transparency = 1
+	hole.Material = Enum.Material.SmoothPlastic
+	hole.Color = Color3.fromRGB(25, 25, 25)
 
-	local decal = Instance.new("Decal")
-	decal.Texture = "rbxasset://textures/Bullet_Hole.png"
-	decal.Face = BulletEffect:_getNearestFace(hitPart, hitPosition)
-	decal.Parent = decalHolder
+	local texture = Instance.new("Texture")
+	texture.Texture = "rbxassetid://359667865"
+	texture.Face = Enum.NormalId.Front
+	texture.StudsPerTileU = 1
+	texture.StudsPerTileV = 1
+	texture.Parent = hole
 
-	-- Create particle emitter
+	-- Offset slightly so it doesn't Z-fight
+	hole.CFrame = CFrame.new(hitPosition + hitNormal * 0.01, hitPosition + hitNormal)
+
+	hole.Parent = Workspace
+
+	-- Weld to surface
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = hole
+	weld.Part1 = hitPart
+	weld.Parent = hole
+
+	-- Impact particles
 	local attachment = Instance.new("Attachment")
-	attachment.Parent = decalHolder
-	attachment.WorldPosition = hitPosition
+	attachment.Parent = hole
 
-	local emitter = Instance.new("ParticleEmitter")
-	emitter.Texture = "rbxasset://textures/Particles/sparkles_main.dds"
-	emitter.Color = ColorSequence.new(Color3.fromRGB(162, 138, 51))
-	emitter.Size = NumberSequence.new(0.5)
-	emitter.Lifetime = NumberRange.new(2)
-	emitter.Rate = 50
-	emitter.Speed = NumberRange.new(10, 20)
-	emitter.Parent = attachment
+	local sparks = Instance.new("ParticleEmitter")
+	sparks.Texture = "rbxasset://textures/Particles/sparkles_main.dds"
+	sparks.Color = ColorSequence.new(Color3.fromRGB(162, 138, 51))
+	sparks.Size = NumberSequence.new(0.3)
+	sparks.Lifetime = NumberRange.new(0.3, 0.6)
+	sparks.Speed = NumberRange.new(10, 18)
+	sparks.Rotation = NumberRange.new(0, 360)
+	sparks.SpreadAngle = Vector2.new(180, 180)
+	sparks.Parent = attachment
+	sparks:Emit(8)
 
-	-- Play material-appropriate sound
-	local material = hitPart.Material
-	local soundId = MATERIAL_SOUNDS[material] or DEFAULT_SOUND
+	-- Sound
+	local soundId = MATERIAL_SOUNDS[hitPart.Material] or DEFAULT_SOUND
 	BulletEffect:_playSound(hitPosition, soundId, config.soundVolume)
 
-	-- Remove decal after lifetime
-	game:GetService("Debris"):AddItem(decal, config.decalLifetime)
-	game:GetService("Debris"):AddItem(attachment, 0.5)
+	Debris:AddItem(hole, config.decalLifetime)
 end
 
-function BulletEffect:_getNearestFace(part: BasePart, position: Vector3): Enum.NormalId
-	local localPosition = part.CFrame:VectorToObjectSpace(position - part.Position)
-	local absX = math.abs(localPosition.X)
-	local absY = math.abs(localPosition.Y)
-	local absZ = math.abs(localPosition.Z)
-
-	if absX > absY and absX > absZ then
-		return localPosition.X > 0 and Enum.NormalId.Right or Enum.NormalId.Left
-	elseif absY > absZ then
-		return localPosition.Y > 0 and Enum.NormalId.Top or Enum.NormalId.Bottom
-	else
-		return localPosition.Z > 0 and Enum.NormalId.Front or Enum.NormalId.Back
-	end
-end
+-- ============================================================================
+-- SOUND
+-- ============================================================================
 
 function BulletEffect:_playSound(position: Vector3, soundId: string, volume: number)
-	local sound = Instance.new("Sound")
-	sound.SoundId = soundId
-	sound.Volume = volume
-	sound.Parent = Workspace
-
 	local part = Instance.new("Part")
 	part.Anchored = true
 	part.CanCollide = false
-	part.CanQuery = false
 	part.CanTouch = false
+	part.CanQuery = false
 	part.Transparency = 1
+	part.Size = Vector3.new(0.2, 0.2, 0.2)
 	part.CFrame = CFrame.new(position)
 	part.Parent = Workspace
 
+	local sound = Instance.new("Sound")
+	sound.SoundId = soundId
+	sound.Volume = volume
+	sound.RollOffMaxDistance = 80
 	sound.Parent = part
 	sound:Play()
 
-	game:GetService("Debris"):AddItem(part, sound.TimeLength + 0.5)
+	Debris:AddItem(part, sound.TimeLength + 0.5)
 end
 
 return BulletEffect

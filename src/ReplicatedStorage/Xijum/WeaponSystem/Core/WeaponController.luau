@@ -14,6 +14,8 @@ local BodyAim = require(WeaponSystem:WaitForChild("Utils"):WaitForChild("BodyAim
 local BulletCase = require(WeaponSystem:WaitForChild("Utils"):WaitForChild("BulletCase"))
 local Holster = require(WeaponSystem:WaitForChild("Utils"):WaitForChild("Holster"))
 
+local Utils = require(WeaponSystem:WaitForChild("Utils"):WaitForChild("Utils"))
+
 local AmmoUpdateRemote = Remotes:WaitForChild(RemoteNames.RemoteEvents.AmmoUpdateRemote)
 
 -- ============================================================================
@@ -149,6 +151,7 @@ function WeaponController:Fire(fireData)
 	if ray then
 		warn("Hit: ", ray.Instance:GetFullName())
 
+		--[[
 		local bullet = Bullet.new(fireData.origin, fireData.direction, {
 			speed = 500,
 			lifetime = 5,
@@ -160,7 +163,25 @@ function WeaponController:Fire(fireData)
 			maxPierces = self.CurrentConfig.MaxPierces,
 			player = self.Player,
 		})
+		]]
+		local weaponBulletConfig = self.CurrentConfig.BulletConfig
+		assert(weaponBulletConfig, "Weapon has no BulletConfig")
+		local bulletConfig = {
+			speed = weaponBulletConfig.speed,
+			lifetime = weaponBulletConfig.lifetime,
+			size = weaponBulletConfig.size,
+			color = weaponBulletConfig.color,
+			material = weaponBulletConfig.material,
+			canPierce = weaponBulletConfig.canPierce,
+			caseType = weaponBulletConfig.caseType,
 
+			-- added by controller
+			player = self.Player,
+			damage = self.CurrentConfig.DamageConfig,
+			maxPierces = weaponBulletConfig.maxPierces or 0,
+		}
+
+		local bullet = Bullet.new(fireData.origin, fireData.direction, bulletConfig)
 		table.insert(self.Bullets, bullet)
 	end
 
@@ -170,8 +191,12 @@ function WeaponController:Fire(fireData)
 		self.Ammo.Loaded[checkUUID(self.CurrentWeapon)],
 		self.Ammo.Reserve[checkUUID(self.CurrentWeapon)]
 	)
-	if fireData.weapon:FindFirstChild("Attachments"):FindFirstChild("EjectAttachment") then
-		BulletCase.new(fireData.weapon:FindFirstChild("Attachments"):FindFirstChild("EjectAttachment")):eject()
+	if fireData.weapon:FindFirstChild("Attachments"):FindFirstChild("ReceiverAttachment") then
+		--BulletCase.new(fireData.weapon:FindFirstChild("Attachments"):FindFirstChild("EjectAttachment")):eject()
+		Utils:EjectShell(
+			fireData.weapon:FindFirstChild("Attachments"):FindFirstChild("ReceiverAttachment"),
+			self.CurrentConfig.BulletConfig.caseType
+		)
 	end
 	return true
 end

@@ -175,14 +175,14 @@ function WeaponClient:ToggleAiming(isAiming)
 	self.WeaponHUD:setCrosshairVisible(isAiming)
 	if isAiming then
 		self:PlayAnimation("Aim")
+		self:PlaySound("Local", "AimUp")
 		self:ActivateCamera()
 	else
 		self:StopAnimation("Aim")
+		self:PlaySound("Local", "AimDown")
 		self:DeactivateCamera()
 	end
 	AimRemote:FireServer(isAiming)
-
-	self:PlaySound("Local", "Aim")
 
 	if isAiming then
 		self._CrosshairConnection = RunService.Heartbeat:Connect(function()

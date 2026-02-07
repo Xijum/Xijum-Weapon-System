@@ -1,10 +1,16 @@
 return {
-	Name = "FX-05 Xijum",
+	Name = "FX-07 Xijum",
 
 	FireMode = { "Auto", "Semi" }, -- Auto | Semi | Burst | Pump
 	FireRate = 750, -- RPM
 
-	Damage = 24,
+	DamageConfig = {
+		Head = 35,
+		Torso = 25,
+		Limbs = 15,
+		Default = 20,
+	},
+
 	Range = 1000,
 
 	MagazineSize = 30,
@@ -42,12 +48,29 @@ return {
 		Reload = "rbxassetid://5445945972",
 		Equip = "rbxassetid://5508953366",
 		Unequip = "rbxassetid://5508953366",
-		Aim = "rbxassetid://125800774064191",
+		AimDown = "rbxassetid://619578856",
+		AimUp = "rbxassetid://619576578",
 		Firemode = "rbxassetid://102002648823684",
 		Emtpy = "rbxassetid://321719832",
 		EmptyClick = "rbxassetid://743780661",
 		Hitmarker = "rbxassetid://76525344270919",
 	},
 
-	Bullet = {},
+	Holster = {
+
+		HolsterPosition = { 0.6, -0.3, 0 },
+		HolsterOrientation = { -75, 0, 0 },
+		HolsterTarget = "RightUpperLeg",
+	},
+
+	BulletConfig = {
+		speed = 500,
+		lifetime = 5,
+		size = Vector3.new(0.2, 0.2, 1),
+		color = Color3.new(1, 0, 0),
+		material = Enum.Material.Neon,
+		canPierce = false,
+		maxPierces = 0,
+		caseType = "5.56x45mm",
+	},
 }

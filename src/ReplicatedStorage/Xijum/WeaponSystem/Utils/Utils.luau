@@ -1,6 +1,10 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Debris = game:GetService("Debris")
 
+local Xijum = ReplicatedStorage:WaitForChild("Xijum")
+local WeaponSystem = Xijum:WaitForChild("WeaponSystem")
+local Assets = WeaponSystem:WaitForChild("Assets")
+
 local Utils = {}
 Utils.__index = Utils
 
@@ -40,15 +44,15 @@ function Utils:Sheath(character, weapon)
 end
 
 function Utils:bulletHole(result)
-	local hole = ReplicatedStorage.WeaponAssets.BulletHole:Clone()
+	local hole = Assets.BulletHole:Clone()
 	hole.Parent = result.instance
 	hole.Position = result.position
 	hole.CFrame = CFrame.new(hole.Position, hole.Position + result.normal)
 	hole.CanTouch = false
 	hole.CanCollide = false
-	wait()
+	task.wait()
 	if result.blood then
-		hole.Dust.Color = ColorSequence.new(Color3.new(170, 0, 0))
+		hole.Dust.Color = ColorSequence.new(Color3.new(1, 0, 0))
 		hole.Dust:Emit(3)
 	else
 		hole.Dust:Emit(3)
@@ -61,10 +65,13 @@ function Utils:bulletHole(result)
 	Debris:AddItem(hole, 5)
 end
 
-function Utils:EjectShell(Receiver: Part, Case)
-	local shellModel = ReplicatedStorage.WeaponAssets:FindFirstChild(Case)
+function Utils:EjectShell(Receiver, Case)
+	local shellModel = Assets:FindFirstChild(Case)
+	assert(shellModel, "Shell model not found")
+
 	if shellModel then
 		local newShell = shellModel:Clone()
+		newShell.Name = "EjectedShell"
 		newShell.Position = Receiver.Position
 		newShell.CFrame = Receiver.CFrame
 		newShell.Velocity = (Receiver.CFrame.LookVector * 8) + (Receiver.CFrame.RightVector * 8) + Vector3.new(0, 15, 0)
