@@ -97,6 +97,7 @@ function WeaponController:EquipWeapon(weapon: Tool)
 	AmmoUpdateRemote:FireClient(self.Player, self.Ammo.Loaded[weaponId], self.Ammo.Reserve[weaponId])
 
 	-- Check if weapon holster class has been created
+	--[[
 	if not self.HolsterWeapons[self.Player.UserId][weaponId] then
 		self.HolsterWeapons[self.Player.UserId][weaponId] =
 			Holster(self.Player.Character or self.Player.CharacterAdded:Wait()):registerWeapon()(weapon)
@@ -104,15 +105,16 @@ function WeaponController:EquipWeapon(weapon: Tool)
 
 	if self.HolsterWeapons[self.Player.UserId][weaponId] then
 		self.HolsterWeapons[self.Player.UserId][weaponId]:unholster(weapon)
-	end
+	end]]
 
 	return true
 end
 
 function WeaponController:UnequipWeapon()
+	--[[
 	if self.HolsterWeapons[self.Player.UserId][self.CurrentWeapon] then
 		self.HolsterWeapons[self.Player.UserId][self.CurrentWeapon]:holster(self.CurrentWeapon)
-	end
+	end]]
 
 	self.CurrentWeapon = nil
 	self.CurrentConfig = nil
@@ -168,8 +170,9 @@ function WeaponController:Fire(fireData)
 		self.Ammo.Loaded[checkUUID(self.CurrentWeapon)],
 		self.Ammo.Reserve[checkUUID(self.CurrentWeapon)]
 	)
-
-	BulletCase.new(fireData.weapon:FindFirstChild("EjectAttachment")):eject()
+	if fireData.weapon:FindFirstChild("Attachments"):FindFirstChild("EjectAttachment") then
+		BulletCase.new(fireData.weapon:FindFirstChild("Attachments"):FindFirstChild("EjectAttachment")):eject()
+	end
 	return true
 end
 
@@ -187,13 +190,15 @@ function WeaponController:DropMagazine(reloadTime)
 
 	local magazine = magOriginal:Clone()
 	magazine.CFrame = magOriginal.CFrame
+	magazine.CanCollide = true
+	magazine.Transparency = 0
 	magazine.Parent = workspace
 
 	-- Add physics to the dropped magazine
-	local bodyVelocity = Instance.new("BodyVelocity")
-	bodyVelocity.Velocity = (magazine.CFrame.LookVector + Vector3.new(0, 1, 0)) * 10
-	bodyVelocity.MaxForce = Vector3.new(1000, 1000, 1000)
-	bodyVelocity.Parent = magazine
+	--local bodyVelocity = Instance.new("BodyVelocity")
+	--bodyVelocity.Velocity = (magazine.CFrame.LookVector + Vector3.new(0, 1, 0)) * 10
+	--bodyVelocity.MaxForce = Vector3.new(1000, 1000, 1000)
+	--bodyVelocity.Parent = magazine
 
 	task.wait(reloadTime)
 

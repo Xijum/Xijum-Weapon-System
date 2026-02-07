@@ -20,7 +20,7 @@ function AnimationHandler:LoadAnimations(character)
 			local animation = Instance.new("Animation")
 			animation.AnimationId = animationId
 			self.Animations[name] = self.Humanoid.Animator:LoadAnimation(animation)
-			if name == "Aim" or name == "Reload" then
+			if name == "Aim" or name == "Reload" or name == "Fire" then
 				self.Animations[name].Priority = Enum.AnimationPriority.Action2
 			end
 		end

@@ -4,8 +4,9 @@ local WeaponHUD = {}
 WeaponHUD.__index = WeaponHUD
 
 --// Constructor
-function WeaponHUD.new(hudFrame: Frame)
+function WeaponHUD.new(hudFrame: Frame, hudHit: Frame)
 	assert(hudFrame:IsA("Frame"), "hudFrame must be a Frame instance")
+	assert(hudHit:IsA("Frame"), "hudHit must be a Frame instance")
 	assert(hudFrame:FindFirstChild("WeaponName"), "hudFrame must contain a 'WeaponName' TextLabel")
 	assert(hudFrame:FindFirstChild("WeaponFiremode"), "hudFrame must contain a 'WeaponFiremode' TextLabel")
 	assert(hudFrame:FindFirstChild("WeaponAmmo"), "hudFrame must contain a 'WeaponAmmo' TextLabel")
@@ -13,6 +14,7 @@ function WeaponHUD.new(hudFrame: Frame)
 	local self = setmetatable({}, WeaponHUD)
 
 	self.hud = hudFrame
+	self.hudHit = hudHit
 	self.gunNameLabel = hudFrame:FindFirstChild("WeaponName")
 	self.fireModeLabel = hudFrame:FindFirstChild("WeaponFiremode")
 
@@ -96,30 +98,36 @@ end
 
 --// Show hitmarker effect
 function WeaponHUD:showHitmarker(hit: boolean)
-	local hitmarker = self.hud:FindFirstChild("Hitmarker")
+	local hitmarker = self.hudHit:FindFirstChild("Hitmarker")
 	if not hitmarker then
 		return
 	end
+	task.spawn(function()
+		hitmarker.Visible = true
+		hitmarker.ImageTransparency = 0
 
-	hitmarker.Visible = true
-	hitmarker.ImageTransparency = 0
-
-	local tween = TweenService:Create(hitmarker, self.fadeTween, {
-		ImageTransparency = 1,
-	})
-	tween:Play()
-	tween.Completed:Once(function()
-		hitmarker.Visible = false
+		local tween = TweenService:Create(hitmarker, self.fadeTween, {
+			ImageTransparency = 1,
+		})
+		tween:Play()
+		tween.Completed:Once(function()
+			hitmarker.Visible = false
+		end)
 	end)
 end
 
 -- Crosshair stuff
 
 function WeaponHUD:setCrosshairVisible(visible: boolean)
-	local crosshair = self.hud:FindFirstChild("Crosshair")
+	local crosshair = self.hudHit:FindFirstChild("Crosshair")
 	if not crosshair then
 		return
 	end
+
+	local mouse = self.player:GetMouse()
+	local offsetX = crosshair.AbsoluteSize.X / 2
+	local offsetY = crosshair.AbsoluteSize.Y / 2
+	self.hudHit.Position = UDim2.fromOffset(mouse.X - offsetX, mouse.Y - offsetY)
 
 	local tween = TweenService:Create(crosshair, self.fadeTween, {
 		ImageTransparency = visible and 0 or 1,
@@ -129,7 +137,7 @@ end
 
 --// Change crosshair color if aiming an active target
 function WeaponHUD:setCrosshairActive(active: boolean)
-	local crosshair = self.hud:FindFirstChild("Crosshair")
+	local crosshair = self.hudHit:FindFirstChild("Crosshair")
 	if not crosshair then
 		return
 	end

@@ -1,5 +1,4 @@
 local Players = game:GetService("Players")
-local RenderSettings = game:GetService("RenderSettings")
 local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -64,8 +63,9 @@ function WeaponClient:InitHUD()
 
 	local hudGui = playerGui:WaitForChild("XijumHUD")
 	local weaponHudFrame = hudGui:WaitForChild("WeaponHUD")
+	local hitmarkerContainer = hudGui:WaitForChild("HitmarkerContainer")
 
-	self.WeaponHUD = WeaponHUD.new(weaponHudFrame)
+	self.WeaponHUD = WeaponHUD.new(weaponHudFrame, hitmarkerContainer)
 end
 
 function WeaponClient:GetWeaponUID()
@@ -190,9 +190,16 @@ function WeaponClient:ToggleAiming(isAiming)
 				local origin = workspace.CurrentCamera.CFrame.Position
 				local direction = workspace.CurrentCamera.CFrame.LookVector
 
-				local hitPart = self.Ray:PerformRaycast(origin, direction, { player.Character })
-				local isValid, _ = HitValidation.HitValidationDetection(hitPart)
-				self.WeaponHUD:setCrosshairActive(isValid)
+				local rayResult = workspace:Raycast(origin, direction)
+				--print(rayResult)
+				if rayResult and rayResult.Instance then
+					local isValid, _ = HitValidation.HitValidationDetection(rayResult.Instance)
+					self.WeaponHUD:setCrosshairActive(isValid)
+				else
+					self.WeaponHUD:setCrosshairActive(false)
+				end
+				--local isValid, _ = HitValidation.HitValidationDetection(hitPart.Instance)
+				--self.WeaponHUD:setCrosshairActive(isValid)
 			end
 		end)
 	else
@@ -458,13 +465,18 @@ function WeaponClient:BindInput()
 
 		local function onToolEquipped(tool)
 			if tool:IsA("Tool") and tool:FindFirstChild("XijumWeapon").Value then
+				if self.CurrentWeapon and self.CurrentWeapon ~= tool then
+					self:UnequipWeapon()
+				end
 				self:EquipWeapon(tool)
 			end
 		end
 
 		local function onToolUnequipped(tool)
 			if tool:IsA("Tool") and tool:FindFirstChild("XijumWeapon").Value then
-				self:UnequipWeapon()
+				if self.CurrentWeapon == tool then
+					self:UnequipWeapon()
+				end
 			end
 		end
 

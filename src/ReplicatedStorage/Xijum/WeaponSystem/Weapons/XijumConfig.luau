@@ -30,8 +30,8 @@ return {
 
 	Animations = {
 		Idle = "rbxassetid://10686514105",
-		Fire = "rbxassetid://135830481157981",
-		Aim = "rbxassetid://10686522656",
+		Fire = "rbxassetid://74543338771779",
+		Aim = "rbxassetid://94755584744926",
 		Reload = "rbxassetid://111829045939459",
 		Equip = "rbxassetid://86022375945841",
 		Unequip = "rbxassetid://124291191673246",
@@ -46,6 +46,7 @@ return {
 		Firemode = "rbxassetid://102002648823684",
 		Emtpy = "rbxassetid://321719832",
 		EmptyClick = "rbxassetid://743780661",
+		Hitmarker = "rbxassetid://76525344270919",
 	},
 
 	Bullet = {},

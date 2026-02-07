@@ -102,7 +102,7 @@ function Camera:Deactivate()
 	self.isActive = false
 	self:SetMouseLocked(false)
 	self.currentCamera.CameraType = Enum.CameraType.Custom
-	UserInputService.MouseIconEnabled = true
+	UserInputService.MouseIconEnabled = false
 end
 
 function Camera:SetMouseLocked(state)
@@ -140,7 +140,7 @@ function Camera:ToggleMode(mode)
 	if self.cameraMode == "OTS" then
 		-- Lock the mouse so camera can rotate
 		self:SetMouseLocked(true)
-		UserInputService.MouseIconEnabled = true
+		UserInputService.MouseIconEnabled = false
 
 		-- Sync initial yaw/pitch from character
 		local character = self.player.Character

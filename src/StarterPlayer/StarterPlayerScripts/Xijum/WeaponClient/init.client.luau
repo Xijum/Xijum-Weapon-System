@@ -12,10 +12,11 @@ local HitmarkerRemote = Remotes:WaitForChild(RemoteNames.RemoteEvents.HitmarkerR
 
 local controller = WeaponClient.new()
 
+controller:BindInput()
+
 local Player = game.Players.LocalPlayer
 Player.CharacterAdded:connect(function(Character)
 	controller:InitHUD()
-	controller:BindInput()
 
 	Character.Humanoid.Died:Connect(function()
 		controller:OnCharacterDied()

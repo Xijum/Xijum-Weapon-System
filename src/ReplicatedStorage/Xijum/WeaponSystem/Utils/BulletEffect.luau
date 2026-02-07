@@ -1,3 +1,4 @@
+local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
 
 -- ============================================================================
@@ -20,21 +21,21 @@ local DEFAULT_CONFIG: EffectConfig = {
 }
 
 local MATERIAL_SOUNDS = {
-	[Enum.Material.Concrete] = "rbxasset://sounds/impact_stone.ogg",
-	[Enum.Material.Brick] = "rbxasset://sounds/impact_stone.ogg",
-	[Enum.Material.Cobblestone] = "rbxasset://sounds/impact_stone.ogg",
-	[Enum.Material.Metal] = "rbxasset://sounds/impact_metal.ogg",
-	[Enum.Material.DiamondPlate] = "rbxasset://sounds/impact_metal.ogg",
-	[Enum.Material.CorrodedMetal] = "rbxasset://sounds/impact_metal.ogg",
-	[Enum.Material.Wood] = "rbxasset://sounds/impact_wood.ogg",
-	[Enum.Material.WoodPlanks] = "rbxasset://sounds/impact_wood.ogg",
-	[Enum.Material.Glass] = "rbxasset://sounds/Glassbreak.ogg",
-	[Enum.Material.Sand] = "rbxasset://sounds/impact_sand.ogg",
-	[Enum.Material.Grass] = "rbxasset://sounds/impact_grass.ogg",
+	[Enum.Material.Concrete] = "rbxassetid://142082166",
+	[Enum.Material.Brick] = "rbxassetid://139818366003696",
+	[Enum.Material.Cobblestone] = "rbxassetid://139818366003696",
+	[Enum.Material.Metal] = "rbxassetid://9116673678",
+	[Enum.Material.DiamondPlate] = "rbxassetid://9116673678",
+	[Enum.Material.CorrodedMetal] = "rbxassetid://9116673678",
+	[Enum.Material.Wood] = "rbxassetid://8542226017",
+	[Enum.Material.WoodPlanks] = "rbxassetid://8542224819",
+	[Enum.Material.Glass] = "rbxassetid://116374735080767",
+	[Enum.Material.Sand] = "rbxassetid://104300505318787",
+	[Enum.Material.Grass] = "rbxassetid://1055286841",
 }
 
-local DEFAULT_SOUND = "rbxasset://sounds/impact_generic.ogg"
-local BLOOD_SOUND = "rbxasset://sounds/impact_flesh.ogg"
+local DEFAULT_SOUND = "rbxassetid://8636404035"
+local BLOOD_SOUND = "rbxassetid://76525344270919"
 
 -- ============================================================================
 -- PUBLIC METHODS
@@ -65,17 +66,19 @@ function BulletEffect:_createBloodEffect(hitPart: BasePart, hitPosition: Vector3
 	attachment.Parent = hitPart
 	attachment.WorldPosition = hitPosition
 
-	local emitter = Instance.new("ParticleEmitter")
-	emitter.Texture = "rbxasset://textures/Particles/sparkles_main.dds"
-	emitter.Color = ColorSequence.new(Color3.fromRGB(139, 0, 0))
-	emitter.Size = NumberSequence.new(0.5)
-	emitter.Lifetime = NumberSequence.new(2)
-	emitter.Rate = 50
-	emitter.Speed = NumberRange.new(10, 20)
+	local emitter = game:GetService("ReplicatedStorage")
+		:WaitForChild("Xijum")
+		:WaitForChild("WeaponSystem")
+		:WaitForChild("Assets")
+		:WaitForChild("BloodEmitter")
+		:Clone()
+	emitter.Enabled = false
+	emitter:Emit(1000)
+
 	emitter.Parent = attachment
 
 	-- Play blood sound
-	BulletEffect:_playSound(hitPosition, BLOOD_SOUND, config.soundVolume)
+	--BulletEffect:_playSound(hitPosition, BLOOD_SOUND, config.soundVolume)
 
 	-- Clean up after lifetime
 	game:GetService("Debris"):AddItem(attachment, 0.5)
@@ -83,29 +86,36 @@ end
 
 function BulletEffect:_createBulletHole(hitPart: BasePart, hitPosition: Vector3, config: EffectConfig)
 	-- Create bullet hole decal
+
+	local decalHolder = Instance.new("Part")
+	decalHolder.Anchored = true
+	decalHolder.Size = Vector3.new(config.decalSize, config.decalSize, 0.1)
+	decalHolder.Position = hitPosition + (hitPart.CFrame.LookVector * 0.01)
+	decalHolder.CFrame = hitPart.CFrame * CFrame.new(hitPart.CFrame.LookVector * 0.01)
+	decalHolder.Parent = hitPart
+
 	local decal = Instance.new("Decal")
 	decal.Texture = "rbxasset://textures/Bullet_Hole.png"
-	decal.Size = NumberSequence.new(config.decalSize)
 	decal.Face = BulletEffect:_getNearestFace(hitPart, hitPosition)
-	decal.Parent = hitPart
+	decal.Parent = decalHolder
 
 	-- Create particle emitter
 	local attachment = Instance.new("Attachment")
-	attachment.Parent = hitPart
+	attachment.Parent = decalHolder
 	attachment.WorldPosition = hitPosition
 
 	local emitter = Instance.new("ParticleEmitter")
 	emitter.Texture = "rbxasset://textures/Particles/sparkles_main.dds"
 	emitter.Color = ColorSequence.new(Color3.fromRGB(162, 138, 51))
 	emitter.Size = NumberSequence.new(0.5)
-	emitter.Lifetime = NumberSequence.new(2)
+	emitter.Lifetime = NumberRange.new(2)
 	emitter.Rate = 50
 	emitter.Speed = NumberRange.new(10, 20)
 	emitter.Parent = attachment
 
 	-- Play material-appropriate sound
 	local material = hitPart.Material
-	local soundId = MATERIAL_SOUNDS[material] or MATERIAL_SOUNDS[Enum.Material.Concrete]
+	local soundId = MATERIAL_SOUNDS[material] or DEFAULT_SOUND
 	BulletEffect:_playSound(hitPosition, soundId, config.soundVolume)
 
 	-- Remove decal after lifetime
