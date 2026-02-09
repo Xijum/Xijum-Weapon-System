@@ -13,6 +13,7 @@ return {
 
 		AmmoUpdateRemote = "Xijum_WeaponAmmoUpdate",
 		HitmarkerRemote = "Xijum_WeaponHitmarker",
+		HolsterRemote = "Xijum_WeaponHolster",
 	},
 	RemoteFunctions = {
 		GetAmmo = "Xijum_WeaponGetAmmoFunction",

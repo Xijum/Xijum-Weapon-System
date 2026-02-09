@@ -14,26 +14,24 @@ function Recoil:SetConfig(config)
 end
 
 function Recoil:ApplyRecoil()
-	local recoilConfig = self.config.Recoil
-	local verticalRecoil = recoilConfig.Vertical
-	local horizontalRecoil = (math.random() - 0.5) * 2 * recoilConfig.Horizontal
+	local r = self.config.Recoil
 
-	self.currentRecoil = self.currentRecoil + Vector2.new(horizontalRecoil, verticalRecoil)
-	warn(self.currentRecoil)
+	local vertical = r.Vertical + ((math.random() - 0.5) * 2 * r.VerticalRandom)
+	local horizontal = (math.random() - 0.5) * 2 * r.Horizontal
+
+	self.currentRecoil += Vector2.new(horizontal, vertical)
+
+	-- CLAMP (this is the important part)
+	self.currentRecoil = Vector2.new(
+		math.clamp(self.currentRecoil.X, -r.MaxHorizontal, r.MaxHorizontal),
+		math.clamp(self.currentRecoil.Y, 0, r.MaxVertical)
+	)
 end
 
-function Recoil:UpdateRecoil(deltaTime)
+function Recoil:UpdateRecoil(dt)
 	local returnSpeed = self.config.Recoil.ReturnSpeed
-	local recoilReduction = returnSpeed * deltaTime
 
-	if self.currentRecoil.Y > 0 then
-		self.currentRecoil = self.currentRecoil - Vector2.new(0, math.min(recoilReduction, self.currentRecoil.Y))
-	end
-
-	if math.abs(self.currentRecoil.X) > 0 then
-		local horizontalReduction = math.min(recoilReduction, math.abs(self.currentRecoil.X))
-		self.currentRecoil = self.currentRecoil - Vector2.new(math.sign(self.currentRecoil.X) * horizontalReduction, 0)
-	end
+	self.currentRecoil -= self.currentRecoil * math.min(returnSpeed * dt, 1)
 end
 
 function Recoil:GetCurrentRecoil()

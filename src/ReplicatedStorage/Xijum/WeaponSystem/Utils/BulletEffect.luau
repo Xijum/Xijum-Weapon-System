@@ -2,6 +2,10 @@ local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Debris = game:GetService("Debris")
 
+local Xijum = ReplicatedStorage:WaitForChild("Xijum")
+local WeaponSystem = Xijum:WaitForChild("WeaponSystem")
+local Assets = WeaponSystem:WaitForChild("Assets")
+
 -- ============================================================================
 -- CLASS
 -- ============================================================================
@@ -102,22 +106,8 @@ function BulletEffect:_createBulletHole(
 	config: EffectConfig
 )
 	-- Thin bullet hole part
-	local hole = Instance.new("Part")
-	hole.Size = Vector3.new(config.decalSize, config.decalSize, 0.01)
-	hole.Anchored = false
-	hole.CanCollide = false
-	hole.CanTouch = false
-	hole.CanQuery = false
-	hole.Transparency = 1
-	hole.Material = Enum.Material.SmoothPlastic
-	hole.Color = Color3.fromRGB(25, 25, 25)
-
-	local texture = Instance.new("Texture")
-	texture.Texture = "rbxassetid://359667865"
-	texture.Face = Enum.NormalId.Front
-	texture.StudsPerTileU = 1
-	texture.StudsPerTileV = 1
-	texture.Parent = hole
+	local hole = Assets:FindFirstChild("BulletHole"):Clone()
+	assert(hole, "Hole Model not found in Assets")
 
 	-- Offset slightly so it doesn't Z-fight
 	hole.CFrame = CFrame.new(hitPosition + hitNormal * 0.01, hitPosition + hitNormal)
@@ -134,20 +124,14 @@ function BulletEffect:_createBulletHole(
 	local attachment = Instance.new("Attachment")
 	attachment.Parent = hole
 
-	local sparks = Instance.new("ParticleEmitter")
-	sparks.Texture = "rbxasset://textures/Particles/sparkles_main.dds"
-	sparks.Color = ColorSequence.new(Color3.fromRGB(162, 138, 51))
-	sparks.Size = NumberSequence.new(0.3)
-	sparks.Lifetime = NumberRange.new(0.3, 0.6)
-	sparks.Speed = NumberRange.new(10, 18)
-	sparks.Rotation = NumberRange.new(0, 360)
-	sparks.SpreadAngle = Vector2.new(180, 180)
-	sparks.Parent = attachment
-	sparks:Emit(8)
+	-- PLAY MODEL EMMITERS
+	task.wait()
+	hole.Dust:Emit(3)
+	hole.Pebbel:Emit(3)
 
 	-- Sound
-	local soundId = MATERIAL_SOUNDS[hitPart.Material] or DEFAULT_SOUND
-	BulletEffect:_playSound(hitPosition, soundId, config.soundVolume)
+	--local soundId = MATERIAL_SOUNDS[hitPart.Material] or DEFAULT_SOUND
+	--BulletEffect:_playSound(hitPosition, soundId, config.soundVolume)
 
 	Debris:AddItem(hole, config.decalLifetime)
 end

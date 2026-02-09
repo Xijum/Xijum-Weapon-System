@@ -32,6 +32,7 @@ local RemotesEvents = {
 	Unequip = createRemote(RemoteNames.RemoteEvents.Unequip),
 	Sound = createRemote(RemoteNames.RemoteEvents.Sound),
 	AimUpdate = createRemote(RemoteNames.RemoteEvents.AimUpdate),
+	HolsterRemote = createRemote(RemoteNames.RemoteEvents.HolsterRemote),
 
 	AmmoUpdateRemote = createRemote(RemoteNames.RemoteEvents.AmmoUpdateRemote),
 	HitmarkerRemote = createRemote(RemoteNames.RemoteEvents.HitmarkerRemote),
@@ -108,6 +109,12 @@ end)
 RemotesEvents.HitmarkerRemote.OnServerEvent:Connect(function(player, hitType)
 	log(player, "Hitmarker", "Hit type: " .. tostring(hitType))
 end)
+
+RemotesEvents.HolsterRemote.OnServerEvent:Connect(function(player, weaponId)
+	log(player, "Holster", "Weapon ID: " .. tostring(weaponId) .. " holstered")
+end)
+
+-- FUNCTIONS
 
 RemotesFunctions.GetAmmo.OnServerInvoke = function(player, weaponId)
 	log(player, "GetAmmo", "Requested ammo for weapon ID: " .. tostring(weaponId))

@@ -28,6 +28,7 @@ local AimRemote = Remotes:WaitForChild(RemoteNames.RemoteEvents.Aim)
 local UnequipRemote = Remotes:WaitForChild(RemoteNames.RemoteEvents.Unequip)
 local SoundRemote = Remotes:WaitForChild(RemoteNames.RemoteEvents.Sound)
 local AimUpdateRemote = Remotes:WaitForChild(RemoteNames.RemoteEvents.AimUpdate)
+local HolsterRemote = Remotes:WaitForChild(RemoteNames.RemoteEvents.HolsterRemote)
 
 local GetAmmoFunction = Remotes:WaitForChild(RemoteNames.RemoteFunctions.GetAmmo)
 local GenerateGUIDFunction = Remotes:WaitForChild(RemoteNames.RemoteFunctions.GenerateGUID)
@@ -255,6 +256,13 @@ function WeaponClient:Reload()
 		return
 	end
 
+	-- check if ammo reserve allows to reload
+	local _, reserveAmmo = GetAmmoFunction:InvokeServer(self.CurrentWeaponUID)
+	if reserveAmmo <= 0 then
+		self:PlaySound("Local", "EmptyClick")
+		return
+	end
+
 	self:PlayAnimation("Reload")
 	self:PlaySound("Server", "Reload")
 
@@ -292,7 +300,6 @@ function WeaponClient:CanFire()
 	local ammo, _ = GetAmmoFunction:InvokeServer(self.CurrentWeaponUID)
 	if ammo <= 0 then
 		self:PlaySound("Local", "EmptyClick")
-		warn("a")
 		return false
 	end
 	-- Fire rate check
@@ -463,39 +470,49 @@ function WeaponClient:BindInput()
 	player.CharacterAdded:Connect(function(character)
 		local connectedTools = {}
 
-		local function onToolEquipped(tool)
-			if tool:IsA("Tool") and tool:FindFirstChild("XijumWeapon").Value then
-				if self.CurrentWeapon and self.CurrentWeapon ~= tool then
-					self:UnequipWeapon()
-				end
-				self:EquipWeapon(tool)
-			end
-		end
-
-		local function onToolUnequipped(tool)
-			if tool:IsA("Tool") and tool:FindFirstChild("XijumWeapon").Value then
-				if self.CurrentWeapon == tool then
-					self:UnequipWeapon()
-				end
-			end
-		end
-
-		character.ChildAdded:Connect(function(child)
-			if child:IsA("Tool") and child:FindFirstChild("XijumWeapon").Value then
+		-- Check existing tools
+		for _, child in ipairs(player.Backpack:GetChildren()) do
+			if child:IsA("Tool") and child:FindFirstChild("XijumWeapon") and child.XijumWeapon.Value then
 				if not connectedTools[child] then
 					connectedTools[child] = true
 
-					-- check if gun has UID if not request server to create one
 					local uid = child:GetAttribute("WeaponUID")
 					if not uid then
 						uid = GenerateGUIDFunction:InvokeServer(child)
 					end
 
+					local config = require(child:WaitForChild("XijumConfig"))
+					HolsterRemote:FireServer("holster", child, config.Holster)
+
 					child.Equipped:Connect(function()
-						onToolEquipped(child)
+						self:EquipWeapon(child)
 					end)
 					child.Unequipped:Connect(function()
-						onToolUnequipped(child)
+						self:UnequipWeapon()
+					end)
+				end
+			end
+		end
+
+		-- Also listen for future tools
+		character.ChildAdded:Connect(function(child)
+			if child:IsA("Tool") and child:FindFirstChild("XijumWeapon") and child.XijumWeapon.Value then
+				if not connectedTools[child] then
+					connectedTools[child] = true
+
+					local uid = child:GetAttribute("WeaponUID")
+					if not uid then
+						uid = GenerateGUIDFunction:InvokeServer(child)
+					end
+
+					local config = require(child:WaitForChild("XijumConfig"))
+					HolsterRemote:FireServer("holster", child, config.Holster)
+
+					child.Equipped:Connect(function()
+						self:EquipWeapon(child)
+					end)
+					child.Unequipped:Connect(function()
+						self:UnequipWeapon()
 					end)
 				end
 			end

@@ -71,6 +71,12 @@ function Bullet:_createVisuals()
 	part.CFrame = CFrame.new(self.position)
 	part.Parent = Workspace
 
+	local pointLight = Instance.new("PointLight")
+	pointLight.Color = self.config.color
+	pointLight.Brightness = 2
+	pointLight.Range = 15
+	pointLight.Parent = part
+
 	self.part = part
 end
 

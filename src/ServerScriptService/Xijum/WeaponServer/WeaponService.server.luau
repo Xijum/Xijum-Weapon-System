@@ -108,6 +108,25 @@ Remotes:WaitForChild(RemoteNames.RemoteEvents.AimUpdate).OnServerEvent:Connect(f
 	controller:UpdateAimPitch(pitch)
 end)
 
+Remotes:WaitForChild(RemoteNames.RemoteEvents.HolsterRemote).OnServerEvent
+	:Connect(function(player, action, weapon: Tool, holsterConfig)
+		warn("holsterign")
+		local controller = getController(player)
+		if not controller then
+			return
+		end
+		if action == "holster" then
+			controller.HolsterSystem:registerWeapon(
+				weapon,
+				holsterConfig.HolsterPosition,
+				holsterConfig.HolsterOrientation,
+				holsterConfig.HolsterTarget
+			)
+		elseif action == "unholster" then
+			controller.HolsterSystem:unholster(weapon)
+		end
+	end)
+
 Remotes:WaitForChild(RemoteNames.RemoteFunctions.GetAmmo).OnServerInvoke = function(player, weaponId)
 	local controller = getController(player)
 	if not controller then

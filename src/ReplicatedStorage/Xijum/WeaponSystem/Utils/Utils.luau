@@ -82,18 +82,18 @@ function Utils:EjectShell(Receiver, Case)
 end
 
 function Utils:VFX(Parent)
-	local SpotLight: SpotLight = Parent:WaitForChild("FlashFX")
-	local FlashFX: ParticleEmitter = Parent:WaitForChild("FlashFX[Flash]")
-	local Smoke: ParticleEmitter = Parent:WaitForChild("Smoke")
-
 	task.spawn(function()
-		SpotLight.Enabled = true
-		task.wait(1)
-		SpotLight.Enabled = false
+		local FlashFX: ParticleEmitter = Parent:WaitForChild("FlashFX[Flash]")
+		local Smoke: ParticleEmitter = Parent:WaitForChild("Smoke")
+
+		task.spawn(function()
+			FlashFX.Enabled = true
+			task.wait(0.1)
+			FlashFX.Enabled = false
+		end)
+		task.wait()
+		Smoke:Emit(3)
 	end)
-	task.wait()
-	FlashFX:Emit(3)
-	Smoke:Emit(3)
 end
 
 return Utils

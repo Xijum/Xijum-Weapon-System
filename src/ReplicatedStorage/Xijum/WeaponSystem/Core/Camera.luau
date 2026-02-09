@@ -69,6 +69,7 @@ function Camera.new(config)
 
 	-- Recoil tracking
 	self.recoilOffset = Vector3.new(0, 0, 0)
+	self.recoilStrength = math.rad(1.5) -- 1.5° per recoil unit
 
 	-- Input
 	UserInputService.InputChanged:Connect(function(input)
@@ -216,9 +217,16 @@ function Camera:UpdateOTSCamera(rootPart)
 	local delta = UserInputService:GetMouseDelta()
 	local sensitivity = self.isAiming and 0.0025 or 0.0015
 
-	-- Camera rotation
+	local recoil = self.Recoil:GetCurrentRecoil()
+
+	-- Mouse input
 	self.otsYaw -= delta.X * sensitivity
 	self.otsPitch -= delta.Y * sensitivity
+
+	-- Recoil (NOTE: ADD pitch, not subtract)
+	self.otsYaw += recoil.X * self.recoilStrength
+	self.otsPitch += recoil.Y * self.recoilStrength
+
 	self.otsPitch = math.clamp(self.otsPitch, math.rad(-40), math.rad(40))
 
 	local otsOffset = self.config.Camera.OTS_Offset or Vector3.new(1.8, 1.2, -3)
@@ -328,7 +336,7 @@ function Camera:ApplyRecoilToCamera()
 	local spread = self.Spread:GetCurrentSpread(self.isAiming, false)
 
 	-- Apply recoil as position offset
-	self.recoilOffset = Vector3.new(recoil.X * 0.15, -recoil.Y * 0.2, 0)
+	--self.recoilOffset = Vector3.new(recoil.X * 0.15, -recoil.Y * 0.2, 0)
 end
 
 -- ============================================================================

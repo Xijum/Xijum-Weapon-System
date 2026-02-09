@@ -6,17 +6,19 @@
 - [x] Bullet holes
 - [x] Bullet casings
 - [x] Show crosshair (red or white based on player targeting)
+- [x] Holster system
 
 ## In Progress 🔄
-- [ ] Holster system
-- [ ] Gun cframe alignment with camera and player front
+- [ ] Firemode types (recon, burst, shotgun, etc)
+- [ ] Improving local sounds
+- [ ] Fixing camera on death
 
 ## Weapon Attachments
 ### Gun Model
 - [ ] Add attachments
-    - [ ] Barrel
-    - [ ] Casing output
-    - [ ] Effects
+    - [-] Barrel (added but needs link to fire logic)
+    - [x] Casing output 
+    - [x] Effects
 
 ## Future Features 
 - [ ] Weapon attachments system

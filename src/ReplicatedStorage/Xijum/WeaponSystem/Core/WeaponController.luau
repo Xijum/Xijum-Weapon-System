@@ -1,5 +1,6 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local HttpService = game:GetService("HttpService")
+local LocalStorageService = game:GetService("LocalStorageService")
 local RenderStepped = game:GetService("RunService").Heartbeat
 
 local Xijum = ReplicatedStorage:WaitForChild("Xijum")
@@ -13,6 +14,8 @@ local Bullet = require(WeaponSystem:WaitForChild("Utils"):WaitForChild("Bullet")
 local BodyAim = require(WeaponSystem:WaitForChild("Utils"):WaitForChild("BodyAim"))
 local BulletCase = require(WeaponSystem:WaitForChild("Utils"):WaitForChild("BulletCase"))
 local Holster = require(WeaponSystem:WaitForChild("Utils"):WaitForChild("Holster"))
+
+local MovementController = require(WeaponSystem:WaitForChild("Core"):WaitForChild("MovementController"))
 
 local Utils = require(WeaponSystem:WaitForChild("Utils"):WaitForChild("Utils"))
 
@@ -30,6 +33,8 @@ function WeaponController.new(player)
 	self.Player = player
 	self.Raycast = Raycast.new()
 	self.BodyAim = nil
+	self.HolsterSystem = nil
+	self.MovementController = nil
 	self.CurrentWeapon = nil
 	self.CurrentConfig = nil
 	self.IsReloading = false
@@ -40,11 +45,6 @@ function WeaponController.new(player)
 		Reserve = {},
 	}
 	self.Bullets = {}
-	--self.HolsterWeapons['player']['weaponId] = createHolster(character)
-	self.HolsterWeapons = {}
-
-	-- On the server side, you should use Heartbeat instead of RenderStepped.
-	-- Place this in a server script context (not in a LocalScript).
 
 	RenderStepped:Connect(function(deltaTime)
 		for _, bullet in pairs(self.Bullets) do
@@ -56,7 +56,7 @@ function WeaponController.new(player)
 end
 
 -- ============================================================================
--- WEAPON MANAGEMENT
+-- UTIL FUNCTIONS
 -- ============================================================================
 
 function WeaponController:GenerateGUID(weapon: Tool)
@@ -79,6 +79,10 @@ function checkUUID(weapon: Tool)
 	return weaponId
 end
 
+-- ============================================================================
+-- WEAPON MANAGEMENT
+-- ============================================================================
+
 function WeaponController:EquipWeapon(weapon: Tool)
 	local weaponId = checkUUID(weapon)
 	assert(weaponId, "Weapon has no WeaponUID")
@@ -98,25 +102,22 @@ function WeaponController:EquipWeapon(weapon: Tool)
 	-- PUSH ammo to client
 	AmmoUpdateRemote:FireClient(self.Player, self.Ammo.Loaded[weaponId], self.Ammo.Reserve[weaponId])
 
-	-- Check if weapon holster class has been created
-	--[[
-	if not self.HolsterWeapons[self.Player.UserId][weaponId] then
-		self.HolsterWeapons[self.Player.UserId][weaponId] =
-			Holster(self.Player.Character or self.Player.CharacterAdded:Wait()):registerWeapon()(weapon)
-	end
-
-	if self.HolsterWeapons[self.Player.UserId][weaponId] then
-		self.HolsterWeapons[self.Player.UserId][weaponId]:unholster(weapon)
-	end]]
+	self.HolsterSystem:unholster(weapon.Name)
 
 	return true
 end
 
 function WeaponController:UnequipWeapon()
-	--[[
-	if self.HolsterWeapons[self.Player.UserId][self.CurrentWeapon] then
-		self.HolsterWeapons[self.Player.UserId][self.CurrentWeapon]:holster(self.CurrentWeapon)
-	end]]
+	if self.CurrentWeapon then
+		local config = self.CurrentConfig.Holster
+
+		local holsterPos = config.HolsterPosition or Vector3.new(0.6, -0.3, 0)
+		local holsterRot = config.HolsterOrientation or Vector3.new(0, 0, 0)
+		local holsterTarget = config.HolsterTarget or "UpperTorso"
+
+		-- Register/holster the weapon
+		self.HolsterSystem:registerWeapon(self.CurrentWeapon, holsterPos, holsterRot, holsterTarget)
+	end
 
 	self.CurrentWeapon = nil
 	self.CurrentConfig = nil
@@ -191,6 +192,11 @@ function WeaponController:Fire(fireData)
 		self.Ammo.Loaded[checkUUID(self.CurrentWeapon)],
 		self.Ammo.Reserve[checkUUID(self.CurrentWeapon)]
 	)
+
+	if self.CurrentWeapon:FindFirstChild("Attachments"):FindFirstChild("BarelAttachment") then
+		Utils:VFX(self.CurrentWeapon:FindFirstChild("Attachments"):FindFirstChild("BarelAttachment"))
+	end
+
 	if fireData.weapon:FindFirstChild("Attachments"):FindFirstChild("ReceiverAttachment") then
 		--BulletCase.new(fireData.weapon:FindFirstChild("Attachments"):FindFirstChild("EjectAttachment")):eject()
 		Utils:EjectShell(
@@ -249,6 +255,10 @@ function WeaponController:Reload(weaponId)
 
 	self:DropMagazine(self.CurrentConfig.ReloadTime)
 
+	if self.MovementController then
+		self.MovementController:setMovementType("reloading")
+	end
+
 	self.IsReloading = true
 	task.wait(self.CurrentConfig.ReloadTime)
 
@@ -282,10 +292,16 @@ function WeaponController:SetAiming(state)
 		if self.BodyAim then
 			self.BodyAim:SetEnabled(true)
 		end
+		if self.MovementController then
+			self.MovementController:setMovementType("aiming")
+		end
 	else
 		-- Disable body aim when not aiming
 		if self.BodyAim then
 			self.BodyAim:SetEnabled(false)
+		end
+		if self.MovementController then
+			self.MovementController:setMovementType("normal")
 		end
 	end
 end
@@ -301,6 +317,14 @@ end
 -- ============================================================================
 
 function WeaponController:OnCharacterAdded(character: Model)
+	if self.MovementController then
+		self.MovementController:Destroy()
+		self.MovementController = nil
+	end
+
+	self.MovementController = MovementController.new(character)
+	self.MovementController:applySettings()
+
 	-- Reinitialize BodyAim for the new character
 	if self.BodyAim then
 		self.BodyAim:Destroy()
@@ -309,12 +333,27 @@ function WeaponController:OnCharacterAdded(character: Model)
 
 	self.BodyAim = BodyAim.new(character)
 	self.BodyAim:Start()
+
+	if self.HolsterSystem then
+		self.HolsterSystem:Destroy()
+		self.HolsterSystem = nil
+	end
+
+	self.HolsterSystem = Holster(character)
 end
 
 function WeaponController:OnCharacterRemoving()
+	if self.MovementController then
+		self.MovementController:Destroy()
+		self.MovementController = nil
+	end
 	if self.BodyAim then
 		self.BodyAim:Destroy()
 		self.BodyAim = nil
+	end
+	if self.HolsterSystem then
+		self.HolsterSystem:Destroy()
+		self.HolsterSystem = nil
 	end
 end
 

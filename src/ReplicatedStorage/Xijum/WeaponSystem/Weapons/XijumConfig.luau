@@ -19,6 +19,7 @@ return {
 
 	Recoil = {
 		Vertical = 1.2,
+		VerticalRandom = 0.6,
 		Horizontal = 0.6,
 		ReturnSpeed = 18,
 	},
@@ -58,9 +59,9 @@ return {
 
 	Holster = {
 
-		HolsterPosition = { 0.6, -0.3, 0 },
-		HolsterOrientation = { -75, 0, 0 },
-		HolsterTarget = "RightUpperLeg",
+		HolsterPosition = { 0, -0.5, -0.9 },
+		HolsterOrientation = { -50, 85, 0 },
+		HolsterTarget = "UpperTorso",
 	},
 
 	BulletConfig = {
